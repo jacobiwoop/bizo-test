@@ -50,7 +50,12 @@ class AuthViewModel : ViewModel() {
                 }
 
                 override fun onVerificationFailed(e: com.google.firebase.FirebaseException) {
-                    _errorMessage.value = e.message
+                    val msg = e.message ?: ""
+                    _errorMessage.value = if (msg.contains("CONFIGURATION_NOT_FOUND") || msg.contains("Firebase parameters are not specified")) {
+                        "Erreur Configuration: Veuillez renseigner FIREBASE_API_KEY, APP_ID, etc. dans les Secrets de AI Studio, et ajouter les clés SHA-1 dans la console Firebase."
+                    } else {
+                        msg
+                    }
                     _authState.value = AuthState.ERROR
                 }
 

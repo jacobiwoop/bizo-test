@@ -32,6 +32,7 @@ import com.example.ui.screens.MessagesScreen
 import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.PublishScreen
+import com.example.ui.screens.MyListingsScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.theme.Black
 import com.example.ui.theme.GrayText
@@ -47,6 +48,7 @@ sealed class Route(val path: String) {
     object Publish : Route("publish")
     object Messages : Route("messages")
     object Profile : Route("profile")
+    object MyListings : Route("my_listings")
 }
 
 @Composable
@@ -190,7 +192,17 @@ fun BizoApp() {
                 MessagesScreen()
             }
             composable(Route.Profile.path) {
-                ProfileScreen()
+                ProfileScreen(onNavigateToMyListings = {
+                    navController.navigate(Route.MyListings.path)
+                })
+            }
+            composable(Route.MyListings.path) {
+                MyListingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onItemClick = { itemId ->
+                        navController.navigate(Route.Detail.createRoute(itemId))
+                    }
+                )
             }
         }
     }

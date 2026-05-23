@@ -34,18 +34,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.data.mockProducts
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import com.example.ui.components.TransactionBadge
+// ... existing imports ...
 import com.example.ui.theme.Black
 import com.example.ui.theme.GrayBorder
 import com.example.ui.theme.GraySurface
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
+import androidx.compose.material.icons.filled.Favorite
 
 @Composable
-fun ItemDetailScreen(itemId: String, onBack: () -> Unit) {
-    val product = mockProducts.find { it.id == itemId } ?: mockProducts.first()
+fun ItemDetailScreen(itemId: String, onBack: () -> Unit, viewModel: ItemDetailViewModel = viewModel()) {
+    val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(itemId) {
+        viewModel.loadItem(itemId)
+    }
+
+    if (state.isLoading) {
+        Box(modifier = Modifier.fillMaxSize().background(White), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Black)
+        }
+        return
+    }
+
+    val product = state.product
+    if (product == null) {
+        Box(modifier = Modifier.fillMaxSize().background(White), contentAlignment = Alignment.Center) {
+            Text("Annonce introuvable ou erreur.", color = Black)
+        }
+        return
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(White)) {
         Column(
@@ -91,11 +117,15 @@ fun ItemDetailScreen(itemId: String, onBack: () -> Unit) {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
-                        onClick = { /* Favorite */ },
+                        onClick = { viewModel.toggleFavorite(itemId) },
                         modifier = Modifier
                             .background(White.copy(alpha = 0.8f), CircleShape)
                     ) {
-                        Icon(Icons.Default.FavoriteBorder, contentDescription = "Fav", tint = Black)
+                        Icon(
+                            if (state.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Fav",
+                            tint = if (state.isFavorite) Color.Red else Black
+                        )
                     }
                 }
             }

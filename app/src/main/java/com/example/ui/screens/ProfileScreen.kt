@@ -13,13 +13,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
     val user = try { FirebaseAuth.getInstance().currentUser } catch (e: Exception) { null }
     val phone = user?.phoneNumber ?: "Non renseigné"
 
@@ -37,6 +38,10 @@ fun ProfileScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
         Text("UID : ${user?.uid}", style = MaterialTheme.typography.bodySmall)
+
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        PrimaryButton(text = "Voir mes annonces", onClick = onNavigateToMyListings)
 
         Spacer(modifier = Modifier.weight(1f))
         

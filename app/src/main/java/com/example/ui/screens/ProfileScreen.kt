@@ -16,9 +16,13 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.components.SecondaryButton
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun ProfileScreen() {
+    val user = try { FirebaseAuth.getInstance().currentUser } catch (e: Exception) { null }
+    val phone = user?.phoneNumber ?: "Non renseigné"
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -29,10 +33,15 @@ fun ProfileScreen() {
         
         Spacer(modifier = Modifier.height(48.dp))
         
-        Text("Paramètres mockés pour démonstration.", style = MaterialTheme.typography.bodyLarge)
+        Text("Numéro de téléphone : $phone", style = MaterialTheme.typography.bodyLarge)
         
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("UID : ${user?.uid}", style = MaterialTheme.typography.bodySmall)
+
         Spacer(modifier = Modifier.weight(1f))
         
-        SecondaryButton(text = "Se déconnecter", onClick = { })
+        SecondaryButton(text = "Se déconnecter", onClick = { 
+            try { FirebaseAuth.getInstance().signOut() } catch (e: Exception) {}
+        })
     }
 }

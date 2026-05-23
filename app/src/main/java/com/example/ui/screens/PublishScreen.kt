@@ -3,32 +3,18 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.TransactionType
 import com.example.ui.theme.Black
@@ -38,63 +24,194 @@ import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
 
 @Composable
-fun PublishScreen(onBack: () -> Unit) {
-    var selectedType by remember { mutableStateOf<TransactionType?>(null) }
+fun PublishScreen(onBack: () -> Unit, viewModel: PublishViewModel = viewModel()) {
+    LaunchedEffect(viewModel.publishSuccess) {
+        if (viewModel.publishSuccess) {
+            onBack()
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
-            .padding(top = 16.dp, start = 20.dp, end = 20.dp, bottom = 20.dp)
+            .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = {
+                if (viewModel.currentStep > 1) {
+                    viewModel.currentStep--
+                } else {
+                    onBack()
+                }
+            }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Black)
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Publier une annonce", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Black)
+            Text("Publier une annonce (${viewModel.currentStep}/5)", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Black)
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Comment tu veux vendre ?", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Choisis le mode de transaction qui te convient le mieux.", style = MaterialTheme.typography.bodyLarge, color = GrayText)
-        
         Spacer(modifier = Modifier.height(24.dp))
 
-        TransactionCardOption(
-            title = "VENTE",
-            desc = "Vends ton article au prix fort et reçois le paiement.",
-            icon = "💰",
-            selected = selectedType == TransactionType.VENTE,
-            onClick = { selectedType = TransactionType.VENTE }
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        TransactionCardOption(
-            title = "TROC",
-            desc = "Échange ton article contre un autre objet de valeur similaire.",
-            icon = "🔄",
-            selected = selectedType == TransactionType.TROC,
-            onClick = { selectedType = TransactionType.TROC }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TransactionCardOption(
-            title = "TROC+CASH",
-            desc = "Échange avec un ajout d'argent si l'objet proposé a moins de valeur.",
-            icon = "🤝",
-            selected = selectedType == TransactionType.TROC_CASH,
-            onClick = { selectedType = TransactionType.TROC_CASH }
-        )
+        when (viewModel.currentStep) {
+            1 -> Step1Photos(viewModel)
+            2 -> Step2Infos(viewModel)
+            3 -> Step3Category(viewModel)
+            4 -> Step4TransactionType(viewModel)
+            5 -> Step5Location(viewModel)
+        }
 
         Spacer(modifier = Modifier.weight(1f))
-        
-        PrimaryButton(text = "Continuer ->", onClick = { /* TODO */ })
+
+        if (viewModel.isPublishing) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = Black)
+        } else {
+            PrimaryButton(
+                text = if (viewModel.currentStep == 5) "Publier l'annonce" else "Continuer ->",
+                onClick = {
+                    if (viewModel.currentStep < 5) {
+                        viewModel.currentStep++
+                    } else {
+                        viewModel.publish()
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun Step1Photos(viewModel: PublishViewModel) {
+    Text("Ajoute des photos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
+    Spacer(modifier = Modifier.height(8.dp))
+    Text("Maximum 10 photos. La première sera la photo principale.", color = GrayText)
+    Spacer(modifier = Modifier.height(24.dp))
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .background(GraySurface, RoundedCornerShape(12.dp))
+            .clickable { /* Simulate picking photo */ },
+        contentAlignment = Alignment.Center
+    ) {
+        Text("📷 Ajouter une photo", color = Black, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun Step2Infos(viewModel: PublishViewModel) {
+    Text("Infos de base", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
+    Spacer(modifier = Modifier.height(16.dp))
+    OutlinedTextField(
+        value = viewModel.title,
+        onValueChange = { viewModel.title = it },
+        label = { Text("Titre de l'annonce") },
+        modifier = Modifier.fillMaxWidth()
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    OutlinedTextField(
+        value = viewModel.description,
+        onValueChange = { viewModel.description = it },
+        label = { Text("Description") },
+        modifier = Modifier.fillMaxWidth().height(150.dp)
+    )
+}
+
+@Composable
+fun Step3Category(viewModel: PublishViewModel) {
+    Text("Catégorie", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
+    Spacer(modifier = Modifier.height(16.dp))
+    val categories = listOf("Électronique", "Vêtements", "Automobile", "Maison", "Services")
+    Column {
+        categories.forEach { category ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.category = category }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = viewModel.category == category,
+                    onClick = { viewModel.category = category }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(category, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
+@Composable
+fun Step4TransactionType(viewModel: PublishViewModel) {
+    Text("Comment tu veux vendre ?", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
+    Spacer(modifier = Modifier.height(24.dp))
+
+    TransactionCardOption(
+        title = "VENTE",
+        desc = "Vends ton article au prix fort.",
+        icon = "💰",
+        selected = viewModel.type == TransactionType.VENTE,
+        onClick = { viewModel.type = TransactionType.VENTE }
+    )
+    if (viewModel.type == TransactionType.VENTE) {
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = viewModel.price,
+            onValueChange = { viewModel.price = it },
+            label = { Text("Prix (en FCFA)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    TransactionCardOption(
+        title = "TROC",
+        desc = "Échange ton article.",
+        icon = "🔄",
+        selected = viewModel.type == TransactionType.TROC,
+        onClick = { viewModel.type = TransactionType.TROC }
+    )
+    
+    Spacer(modifier = Modifier.height(16.dp))
+    
+    TransactionCardOption(
+        title = "TROC+CASH",
+        desc = "Échange avec complément.",
+        icon = "🤝",
+        selected = viewModel.type == TransactionType.TROC_CASH,
+        onClick = { viewModel.type = TransactionType.TROC_CASH }
+    )
+    
+    if (viewModel.type == TransactionType.TROC || viewModel.type == TransactionType.TROC_CASH) {
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = viewModel.exchangeFor,
+            onValueChange = { viewModel.exchangeFor = it },
+            label = { Text("Ce que je cherche...") },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+fun Step5Location(viewModel: PublishViewModel) {
+    Text("Localisation", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
+    Spacer(modifier = Modifier.height(16.dp))
+    OutlinedTextField(
+        value = viewModel.city,
+        onValueChange = { viewModel.city = it },
+        label = { Text("Ville") },
+        modifier = Modifier.fillMaxWidth()
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    OutlinedTextField(
+        value = viewModel.neighborhood,
+        onValueChange = { viewModel.neighborhood = it },
+        label = { Text("Quartier") },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable

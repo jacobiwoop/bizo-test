@@ -13,13 +13,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onNavigateToOnboarding: () -> Unit) {
+fun SplashScreen(
+    onNavigateToHome: () -> Unit,
+    onNavigateToOnboarding: () -> Unit
+) {
     LaunchedEffect(Unit) {
         delay(1500)
-        onNavigateToOnboarding()
+        val user = try {
+            FirebaseAuth.getInstance().currentUser
+        } catch (e: Exception) {
+            null
+        }
+        if (user != null) {
+            onNavigateToHome()
+        } else {
+            onNavigateToOnboarding()
+        }
     }
 
     Box(

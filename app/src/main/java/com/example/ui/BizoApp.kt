@@ -137,11 +137,18 @@ fun BizoApp() {
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(Route.Splash.path) {
-                SplashScreen(onNavigateToOnboarding = {
-                    navController.navigate(Route.Onboarding.path) {
-                        popUpTo(Route.Splash.path) { inclusive = true }
+                SplashScreen(
+                    onNavigateToHome = {
+                        navController.navigate(Route.Home.path) {
+                            popUpTo(Route.Splash.path) { inclusive = true }
+                        }
+                    },
+                    onNavigateToOnboarding = {
+                        navController.navigate(Route.Onboarding.path) {
+                            popUpTo(Route.Splash.path) { inclusive = true }
+                        }
                     }
-                })
+                )
             }
             composable(Route.Onboarding.path) {
                 OnboardingScreen(

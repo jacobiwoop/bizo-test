@@ -10,19 +10,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.supabase
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
-import com.google.firebase.auth.FirebaseAuth
+import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
-    val user = try { FirebaseAuth.getInstance().currentUser } catch (e: Exception) { null }
-    val phone = user?.phoneNumber ?: "Non renseigné"
+    val user = try { supabase.auth.currentSessionOrNull()?.user } catch (e: Exception) { null }
+    val email = user?.email ?: "Non renseigné"
+    val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -34,10 +38,10 @@ fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
         
         Spacer(modifier = Modifier.height(48.dp))
         
-        Text("Numéro de téléphone : $phone", style = MaterialTheme.typography.bodyLarge)
+        Text("Email : $email", style = MaterialTheme.typography.bodyLarge)
         
         Spacer(modifier = Modifier.height(16.dp))
-        Text("UID : ${user?.uid}", style = MaterialTheme.typography.bodySmall)
+        Text("UID : ${user?.id}", style = MaterialTheme.typography.bodySmall)
 
         Spacer(modifier = Modifier.height(32.dp))
         
@@ -46,7 +50,9 @@ fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
         Spacer(modifier = Modifier.weight(1f))
         
         SecondaryButton(text = "Se déconnecter", onClick = { 
-            try { FirebaseAuth.getInstance().signOut() } catch (e: Exception) {}
+            coroutineScope.launch {
+                try { supabase.auth.signOut() } catch (e: Exception) {}
+            }
         })
     }
 }

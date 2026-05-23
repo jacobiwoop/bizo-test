@@ -11,9 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.example.data.supabase
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
-import com.google.firebase.auth.FirebaseAuth
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.delay
 
 @Composable
@@ -24,7 +25,7 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         delay(1500)
         val user = try {
-            FirebaseAuth.getInstance().currentUser
+            supabase.auth.currentSessionOrNull()
         } catch (e: Exception) {
             null
         }

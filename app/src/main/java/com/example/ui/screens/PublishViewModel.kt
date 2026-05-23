@@ -4,9 +4,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.ListingDto
+import com.example.data.supabase
 import com.example.ui.components.TransactionType
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.launch
+import java.util.Date
 import java.util.UUID
 
 class PublishViewModel : ViewModel() {
@@ -29,40 +34,40 @@ class PublishViewModel : ViewModel() {
     var publishSuccess by mutableStateOf(false)
 
     fun publish() {
-        val uid = try { FirebaseAuth.getInstance().currentUser?.uid } catch (e: Exception) { null } ?: return
+        val uid = try { supabase.auth.currentSessionOrNull()?.user?.id } catch (e: Exception) { null } ?: return
         isPublishing = true
         
         val listingId = UUID.randomUUID().toString()
-        val db = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
         
-        val docData = hashMapOf(
-            "id" to listingId,
-            "ownerUid" to uid,
-            "title" to title,
-            "description" to description,
-            "condition" to condition,
-            "deliveryMode" to deliveryMode,
-            "category" to category,
-            "type" to type?.name,
-            "price" to price.toLongOrNull(),
-            "exchangeFor" to exchangeFor,
-            "cashComplement" to cashComplement.toLongOrNull(),
-            "country" to country,
-            "city" to city,
-            "neighborhood" to neighborhood,
-            "status" to "active",
-            "createdAt" to com.google.firebase.Timestamp.now(),
-            "viewCount" to 0,
-            "favoriteCount" to 0
+        val docData = ListingDto(
+            id = listingId,
+            ownerUid = uid,
+            title = title,
+            description = description,
+            condition = condition,
+            deliveryMode = deliveryMode,
+            category = category,
+            type = type?.name ?: "",
+            price = price.toLongOrNull(),
+            exchangeFor = exchangeFor,
+            cashComplement = cashComplement.toLongOrNull(),
+            country = country,
+            city = city,
+            neighborhood = neighborhood,
+            status = "active",
+            createdAt = Date().toString(),
+            viewCount = 0,
+            favoriteCount = 0
         )
 
-        db?.collection("listings")?.document(listingId)?.set(docData)
-            ?.addOnSuccessListener {
+        viewModelScope.launch {
+            try {
+                supabase.from("listings").insert(docData)
                 isPublishing = false
                 publishSuccess = true
-            }
-            ?.addOnFailureListener {
+            } catch (e: Exception) {
                 isPublishing = false
             }
+        }
     }
 }

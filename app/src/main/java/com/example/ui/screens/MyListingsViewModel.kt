@@ -1,19 +1,19 @@
 package com.example.ui.screens
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.ListingDto
 import com.example.data.Product
+import com.example.data.supabase
 import com.example.ui.components.TransactionType
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class MyListingsViewModel : ViewModel() {
-    private val db by lazy { try { FirebaseFirestore.getInstance() } catch (e: Exception) { null } }
-    private val auth by lazy { try { FirebaseAuth.getInstance() } catch (e: Exception) { null } }
-
     private val _listings = MutableStateFlow<List<Product>>(emptyList())
     val listings: StateFlow<List<Product>> = _listings.asStateFlow()
 
@@ -25,29 +25,27 @@ class MyListingsViewModel : ViewModel() {
     }
 
     private fun fetchMyListings() {
-        val uid = auth?.currentUser?.uid
-        if (uid == null || db == null) {
-            _isLoading.value = false
-            return
-        }
+        viewModelScope.launch {
+            val uid = try { supabase.auth.currentSessionOrNull()?.user?.id } catch (e: Exception) { null }
+            if (uid == null) {
+                _isLoading.value = false
+                return@launch
+            }
 
-        db?.collection("listings")
-            ?.whereEqualTo("ownerUid", uid)
-            ?.orderBy("createdAt", Query.Direction.DESCENDING)
-            ?.addSnapshotListener { snapshot, e ->
-                if (e != null || snapshot == null) {
-                    _isLoading.value = false
-                    return@addSnapshotListener
-                }
-
-                val list = snapshot.documents.mapNotNull { doc ->
-                    val id = doc.id
-                    val title = doc.getString("title") ?: ""
-                    val priceLong = doc.getLong("price")
+            try {
+                val results = supabase.from("listings").select {
+                    filter {
+                        eq("ownerUid", uid)
+                    }
+                }.decodeList<ListingDto>()
+                
+                val list = results.map { doc ->
+                    val id = doc.id ?: ""
+                    val title = doc.title
+                    val priceLong = doc.price
                     val price = if (priceLong != null && priceLong > 0) "$priceLong FCFA" else "Gratuit / Échange"
-                    val city = doc.getString("city") ?: ""
-                    val typeStr = doc.getString("type")
-                    val type = TransactionType.values().find { it.name == typeStr } ?: TransactionType.VENTE
+                    val city = doc.city
+                    val type = TransactionType.values().find { it.name == doc.type } ?: TransactionType.VENTE
                     
                     Product(
                         id = id,
@@ -60,9 +58,13 @@ class MyListingsViewModel : ViewModel() {
                         timeAgo = ""
                     )
                 }
-
-                _listings.value = list
+                
+                _listings.value = list.reversed()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
                 _isLoading.value = false
             }
+        }
     }
 }

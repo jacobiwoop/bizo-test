@@ -4,6 +4,7 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+  kotlin("plugin.serialization") version "2.2.10"
 }
 
 android {
@@ -69,14 +70,20 @@ secrets {
 // This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
-  implementation("com.google.firebase:firebase-auth")
-  implementation("com.google.firebase:firebase-firestore")
-  implementation("com.google.firebase:firebase-storage")
-  implementation("com.google.firebase:firebase-messaging")
-  implementation("com.google.firebase:firebase-functions")
+  // implementation(platform(libs.firebase.bom))
+  // implementation("com.google.firebase:firebase-auth")
+  // implementation("com.google.firebase:firebase-firestore")
+  // implementation("com.google.firebase:firebase-storage")
+  // implementation("com.google.firebase:firebase-messaging")
+  // implementation("com.google.firebase:firebase-functions")
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
+  implementation("io.github.jan-tennert.supabase:auth-kt:3.0.2")
+  implementation("io.github.jan-tennert.supabase:postgrest-kt:3.0.2")
+  implementation("io.github.jan-tennert.supabase:storage-kt:3.0.2")
+  implementation("io.ktor:ktor-client-android:2.3.11")
+  implementation("io.ktor:ktor-client-core:2.3.11")
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
   // implementation(libs.androidx.camera.camera2)
   // implementation(libs.androidx.camera.core)
   // implementation(libs.androidx.camera.lifecycle)

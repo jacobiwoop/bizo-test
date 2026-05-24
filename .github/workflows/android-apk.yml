@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.1.0"
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Create .env for build
+        run: |
+          cat > .env <<'EOF'
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY || 'CI_PLACEHOLDER_GEMINI_API_KEY' }}
+          SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
+          SUPABASE_KEY=${{ secrets.SUPABASE_KEY || 'CI_PLACEHOLDER_SUPABASE_KEY' }}
+          EOF
+
+      - name: Restore debug keystore
+        run: |
+          base64 -d debug.keystore.base64 > debug.keystore
+
+      - name: Build debug APK
+        run: |
+          gradle :app:assembleDebug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bizo-app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

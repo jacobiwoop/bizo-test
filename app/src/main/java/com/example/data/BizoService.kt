@@ -182,7 +182,7 @@ class BizoService(
         neighborhood: String?,
         exchangeFor: String?,
         cashComplement: Long?,
-        photoBytes: ByteArray? = null
+        photos: List<PickedImage>
     ): ApiResponse<ListingResource> {
         return client.submitFormWithBinaryData(
             url = "$baseUrl/listings",
@@ -200,10 +200,10 @@ class BizoService(
                 if (exchangeFor != null) append("exchange_for", exchangeFor)
                 if (cashComplement != null) append("cash_complement", cashComplement)
                 
-                if (photoBytes != null) {
-                    append("photos[]", photoBytes, Headers.build {
-                        append(HttpHeaders.ContentType, "image/webp")
-                        append(HttpHeaders.ContentDisposition, "filename=\"listing.webp\"")
+                photos.forEach { photo ->
+                    append("photos[]", photo.bytes, Headers.build {
+                        append(HttpHeaders.ContentType, photo.mimeType)
+                        append(HttpHeaders.ContentDisposition, "filename=\"${photo.filename}\"")
                     })
                 }
             }

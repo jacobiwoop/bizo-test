@@ -1,11 +1,13 @@
 package com.example.ui.screens
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.BizoService
+import com.example.data.PickedImage
 import com.example.ui.components.TransactionType
 import kotlinx.coroutines.launch
 
@@ -24,14 +26,62 @@ class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
     var city by mutableStateOf("Cotonou")
     var neighborhood by mutableStateOf("")
 
-    var selectedPhotoBytes by mutableStateOf<ByteArray?>(null)
-    var selectedPhotoUri by mutableStateOf<String?>(null)
+    // Multiple photos
+    val selectedPhotos = mutableStateListOf<PickedImage>()
 
     var currentStep by mutableStateOf(1)
     var isPublishing by mutableStateOf(false)
     var publishSuccess by mutableStateOf(false)
+    var errorMessage by mutableStateOf<String?>(null)
+
+    fun addPhoto(photo: PickedImage) {
+        if (selectedPhotos.size < 10) {
+            selectedPhotos.add(photo)
+        }
+    }
+
+    fun removePhoto(photo: PickedImage) {
+        selectedPhotos.remove(photo)
+    }
+
+    private fun validate(): Boolean {
+        if (selectedPhotos.isEmpty()) {
+            errorMessage = "Au moins une photo est requise."
+            currentStep = 1
+            return false
+        }
+        if (title.length < 5 || title.length > 80) {
+            errorMessage = "Le titre doit faire entre 5 et 80 caractères."
+            currentStep = 2
+            return false
+        }
+        if (description.length < 20 || description.length > 500) {
+            errorMessage = "La description doit faire entre 20 et 500 caractères."
+            currentStep = 2
+            return false
+        }
+        if (type == null) {
+            errorMessage = "Le type de transaction est requis."
+            currentStep = 4
+            return false
+        }
+        if (type == TransactionType.VENTE && price.isEmpty()) {
+            errorMessage = "Le prix est requis pour une vente."
+            currentStep = 4
+            return false
+        }
+        if ((type == TransactionType.TROC || type == TransactionType.TROC_CASH) && exchangeFor.isEmpty()) {
+            errorMessage = "L'objet d'échange est requis pour un troc."
+            currentStep = 4
+            return false
+        }
+        return true
+    }
 
     fun publish() {
+        errorMessage = null
+        if (!validate()) return
+
         isPublishing = true
         
         viewModelScope.launch {
@@ -43,9 +93,6 @@ class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
                     "Maison" -> "maison"
                     else -> category.lowercase()
                 }
-
-                // Use selected photo or dummy if none (backend requires at least 1)
-                val photo = selectedPhotoBytes ?: ByteArray(1024)
 
                 bizoService.createListing(
                     title = title,
@@ -65,12 +112,13 @@ class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
                     neighborhood = neighborhood,
                     exchangeFor = exchangeFor,
                     cashComplement = cashComplement.toLongOrNull(),
-                    photoBytes = photo
+                    photos = selectedPhotos.toList()
                 )
                 isPublishing = false
                 publishSuccess = true
             } catch (e: Exception) {
                 e.printStackTrace()
+                errorMessage = "Erreur lors de la publication. Vérifiez vos données et votre connexion."
                 isPublishing = false
             }
         }

@@ -32,6 +32,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.lazy.items
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
+
 @Composable
 fun PublishScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -42,13 +49,15 @@ fun PublishScreen(onBack: () -> Unit) {
     })
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            viewModel.selectedPhotoUri = it.toString()
+        contract = ActivityResultContracts.PickMultipleVisualMedia(10)
+    ) { uris ->
+        uris.forEach { uri ->
             try {
-                context.contentResolver.openInputStream(it)?.use { stream ->
-                    viewModel.selectedPhotoBytes = stream.readBytes()
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val bytes = stream.readBytes()
+                    val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+                    val filename = "photo_${System.currentTimeMillis()}.jpg"
+                    viewModel.addPhoto(com.example.data.PickedImage(uri.toString(), bytes, mimeType, filename))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -82,10 +91,29 @@ fun PublishScreen(onBack: () -> Unit) {
             Text("Publier une annonce (${viewModel.currentStep}/5)", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Black)
         }
 
+        val errorMessage = viewModel.errorMessage
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         when (viewModel.currentStep) {
-            1 -> Step1Photos(viewModel, onAddPhoto = { launcher.launch("image/*") })
+            1 -> Step1Photos(viewModel, onAddPhoto = { 
+                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+            })
             2 -> Step2Infos(viewModel)
             3 -> Step3Category(viewModel)
             4 -> Step4TransactionType(viewModel)
@@ -115,38 +143,55 @@ fun PublishScreen(onBack: () -> Unit) {
 fun Step1Photos(viewModel: PublishViewModel, onAddPhoto: () -> Unit) {
     Text("Ajoute des photos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
     Spacer(modifier = Modifier.height(8.dp))
-    Text("La première sera la photo principale. (Minimum 1 requise)", color = GrayText)
+    Text("Maximum 10 photos. La première sera la photo principale.", color = GrayText)
     Spacer(modifier = Modifier.height(24.dp))
     
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(GraySurface)
-            .clickable { onAddPhoto() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (viewModel.selectedPhotoUri != null) {
-            AsyncImage(
-                model = viewModel.selectedPhotoUri,
-                contentDescription = "Preview",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Changer la photo", color = White, fontWeight = FontWeight.Bold)
-            }
-        } else {
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(GraySurface)
+                .clickable { onAddPhoto() },
+            contentAlignment = Alignment.Center
+        ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("📷", style = MaterialTheme.typography.displayMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Ajouter une photo", color = Black, fontWeight = FontWeight.Bold)
+                Text("Clique pour ajouter", color = Black, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (viewModel.selectedPhotos.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(viewModel.selectedPhotos.size) { index ->
+                    val photo = viewModel.selectedPhotos[index]
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        AsyncImage(
+                            model = photo.uri,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = { viewModel.removePhoto(photo) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(24.dp)
+                                .background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape)
+                        ) {
+                            Text("×", color = White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
     }

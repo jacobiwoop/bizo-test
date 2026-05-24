@@ -173,6 +173,13 @@ data class NotificationResource(
     val created_at: String
 )
 
+data class PickedImage(
+    val uri: String,
+    val bytes: ByteArray,
+    val mimeType: String,
+    val filename: String
+)
+
 data class Product(
     val id: String,
     val title: String,

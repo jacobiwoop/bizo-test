@@ -38,20 +38,29 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.Dependencies
 import com.example.ui.components.PrimaryButton
-import com.example.ui.components.SecondaryButton
-import com.example.ui.components.TransactionBadge
-// ... existing imports ...
 import com.example.ui.theme.Black
 import com.example.ui.theme.GrayBorder
 import com.example.ui.theme.GraySurface
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
 import androidx.compose.material.icons.filled.Favorite
+import com.example.ui.components.SecondaryButton
+import com.example.ui.components.TransactionBadge
 
 @Composable
-fun ItemDetailScreen(itemId: String, onBack: () -> Unit, viewModel: ItemDetailViewModel = viewModel()) {
+fun ItemDetailScreen(itemId: String, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val viewModel: ItemDetailViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return ItemDetailViewModel(Dependencies.getBizoService(context)) as T
+        }
+    })
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(itemId) {

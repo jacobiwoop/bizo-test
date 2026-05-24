@@ -13,13 +13,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.Dependencies
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
 import com.example.ui.theme.GrayText
 
 @Composable
-fun MyListingsScreen(onBack: () -> Unit, onItemClick: (String) -> Unit, viewModel: MyListingsViewModel = viewModel()) {
+fun MyListingsScreen(onBack: () -> Unit, onItemClick: (String) -> Unit) {
+    val context = LocalContext.current
+    val viewModel: MyListingsViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return MyListingsViewModel(Dependencies.getBizoService(context)) as T
+        }
+    })
     val listings by viewModel.listings.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 

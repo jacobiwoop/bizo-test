@@ -11,25 +11,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.example.data.supabase
+import androidx.compose.ui.platform.LocalContext
+import com.example.Dependencies
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
-import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToOnboarding: () -> Unit
 ) {
+    val context = LocalContext.current
+    val sessionManager = Dependencies.getSessionManager(context)
+
     LaunchedEffect(Unit) {
         delay(1500)
-        val user = try {
-            supabase.auth.currentSessionOrNull()
-        } catch (e: Exception) {
-            null
-        }
-        if (user != null) {
+        val token = sessionManager.authToken.first()
+        if (token != null) {
             onNavigateToHome()
         } else {
             onNavigateToOnboarding()

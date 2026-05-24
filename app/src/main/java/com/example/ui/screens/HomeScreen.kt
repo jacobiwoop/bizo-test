@@ -18,11 +18,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.Dependencies
 import com.example.data.Product
 import com.example.data.mockProducts
 import com.example.ui.components.TransactionBadge
@@ -32,7 +36,13 @@ import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
 
 @Composable
-fun HomeScreen(onItemClick: (String) -> Unit, viewModel: HomeViewModel = viewModel()) {
+fun HomeScreen(onItemClick: (String) -> Unit) {
+    val context = LocalContext.current
+    val viewModel: HomeViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return HomeViewModel(Dependencies.getBizoService(context)) as T
+        }
+    })
     val products by viewModel.products.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 

@@ -2,18 +2,13 @@ package com.example.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.FavoriteDto
-import com.example.data.ListingDto
+import com.example.data.BizoService
 import com.example.data.Product
-import com.example.data.supabase
 import com.example.ui.components.TransactionType
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.Date
 
 data class ItemDetailState(
     val product: Product? = null,
@@ -22,44 +17,40 @@ data class ItemDetailState(
     val error: String? = null
 )
 
-class ItemDetailViewModel : ViewModel() {
+class ItemDetailViewModel(private val bizoService: BizoService) : ViewModel() {
     private val _state = MutableStateFlow(ItemDetailState())
     val state: StateFlow<ItemDetailState> = _state.asStateFlow()
 
     fun loadItem(itemId: String) {
         viewModelScope.launch {
             try {
-                val doc = supabase.from("listings").select {
-                    filter {
-                        eq("id", itemId)
-                    }
-                }.decodeSingleOrNull<ListingDto>()
+                val response = bizoService.getListingDetails(itemId)
+                val listing = response.data
                 
-                if (doc != null) {
-                    val title = doc.title
-                    val priceLong = doc.price
-                    val price = if (priceLong != null && priceLong > 0) "$priceLong FCFA" else "Gratuit / Échange"
-                    val city = doc.city
-                    val neighborhood = doc.neighborhood ?: ""
-                    val location = if (neighborhood.isNotEmpty()) "$city, $neighborhood" else city
-                    val type = TransactionType.values().find { it.name == doc.type } ?: TransactionType.VENTE
-                    
-                    val product = Product(
-                        id = itemId,
-                        title = title,
-                        price = price,
-                        location = location,
-                        imageUrl = "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400",
-                        type = type,
-                        sellerName = "Utilisateur",
-                        timeAgo = "Récemment" // TODO real time
-                    )
-                    
-                    _state.value = _state.value.copy(product = product, isLoading = false)
-                    checkFavorite(itemId)
-                } else {
-                    _state.value = ItemDetailState(isLoading = false, error = "Annonce introuvable")
+                val title = listing.title
+                val price = if (!listing.price.isNullOrEmpty()) "${listing.price} FCFA" else "Gratuit / Échange"
+                val city = listing.city
+                val neighborhood = listing.neighborhood ?: ""
+                val location = if (neighborhood.isNotEmpty()) "$city, $neighborhood" else city
+                val type = try {
+                    TransactionType.valueOf(listing.type)
+                } catch (e: Exception) {
+                    TransactionType.VENTE
                 }
+                
+                val product = Product(
+                    id = itemId,
+                    title = title,
+                    price = price,
+                    location = location,
+                    imageUrl = listing.photos.firstOrNull()?.let { "https://bizo.aiko.qzz.io$it" } ?: "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400",
+                    type = type,
+                    sellerName = listing.owner?.display_name ?: "Utilisateur",
+                    timeAgo = "Récemment"
+                )
+                
+                _state.value = _state.value.copy(product = product, isLoading = false)
+                checkFavorite(itemId)
             } catch (e: Exception) {
                 _state.value = ItemDetailState(isLoading = false, error = e.message)
             }
@@ -68,19 +59,13 @@ class ItemDetailViewModel : ViewModel() {
 
     private fun checkFavorite(itemId: String) {
         viewModelScope.launch {
-            val uid = try { supabase.auth.currentSessionOrNull()?.user?.id } catch (e: Exception) { null } ?: return@launch
             try {
-                val favs = supabase.from("favorites").select {
-                    filter {
-                        eq("listingId", itemId)
-                        eq("uid", uid)
-                    }
-                }.decodeList<FavoriteDto>()
-                
-                if (favs.isNotEmpty()) {
-                    _state.value = _state.value.copy(isFavorite = true)
-                }
-            } catch (e: Exception) {}
+                val favorites = bizoService.getFavorites()
+                val isFavorite = favorites.data.any { it.id == itemId }
+                _state.value = _state.value.copy(isFavorite = isFavorite)
+            } catch (e: Exception) {
+                // Ignore if not logged in or error
+            }
         }
     }
 
@@ -89,28 +74,8 @@ class ItemDetailViewModel : ViewModel() {
         _state.value = _state.value.copy(isFavorite = !currentFav)
 
         viewModelScope.launch {
-            val uid = try { supabase.auth.currentSessionOrNull()?.user?.id } catch (e: Exception) { null }
-            if (uid == null) {
-                _state.value = _state.value.copy(isFavorite = currentFav)
-                return@launch
-            }
-
             try {
-                if (currentFav) {
-                    supabase.from("favorites").delete {
-                        filter {
-                            eq("listingId", itemId)
-                            eq("uid", uid)
-                        }
-                    }
-                } else {
-                    val favData = FavoriteDto(
-                        listingId = itemId,
-                        uid = uid,
-                        addedAt = Date().toString()
-                    )
-                    supabase.from("favorites").insert(favData)
-                }
+                bizoService.toggleFavorite(itemId, currentFav)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isFavorite = currentFav)
             }

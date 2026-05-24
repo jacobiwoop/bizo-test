@@ -2,9 +2,8 @@ package com.example.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.supabase
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.Email
+import com.example.data.BizoService
+import com.example.data.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +16,10 @@ enum class AuthState {
     ERROR
 }
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(
+    private val bizoService: BizoService,
+    private val sessionManager: SessionManager
+) : ViewModel() {
     private val _authState = MutableStateFlow(AuthState.INPUT_CREDENTIALS)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
@@ -32,34 +34,30 @@ class AuthViewModel : ViewModel() {
         _authState.value = AuthState.LOADING
         viewModelScope.launch {
             try {
-                supabase.auth.signInWith(Email) {
-                    this.email = email
-                    this.password = parseword
-                }
+                val response = bizoService.login(email, parseword)
+                sessionManager.saveSession(response.token, response.user)
                 _authState.value = AuthState.SUCCESS
             } catch (e: Exception) {
                 _authState.value = AuthState.ERROR
-                _errorMessage.value = e.message
+                _errorMessage.value = "Email ou mot de passe incorrect"
             }
         }
     }
 
-    fun signUp(email: String, parseword: String) {
-        if (email.isEmpty() || parseword.isEmpty()) {
+    fun signUp(email: String, parseword: String, displayName: String) {
+        if (email.isEmpty() || parseword.isEmpty() || displayName.isEmpty()) {
             _errorMessage.value = "Veuillez remplir tous les champs"
             return
         }
         _authState.value = AuthState.LOADING
         viewModelScope.launch {
             try {
-                supabase.auth.signUpWith(Email) {
-                    this.email = email
-                    this.password = parseword
-                }
+                val response = bizoService.register(email, parseword, displayName, null)
+                sessionManager.saveSession(response.token, response.user)
                 _authState.value = AuthState.SUCCESS
             } catch (e: Exception) {
                 _authState.value = AuthState.ERROR
-                _errorMessage.value = e.message
+                _errorMessage.value = e.message ?: "Erreur lors de l'inscription"
             }
         }
     }

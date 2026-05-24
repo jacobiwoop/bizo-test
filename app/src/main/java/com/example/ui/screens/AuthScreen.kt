@@ -17,7 +17,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.Dependencies
 import com.example.ui.components.PrimaryButton
 import com.example.ui.theme.Black
 import com.example.ui.theme.GraySurface
@@ -27,13 +31,23 @@ import com.example.ui.theme.White
 @Composable
 fun AuthScreen(
     onAuthenticated: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val viewModel: AuthViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return AuthViewModel(
+                Dependencies.getBizoService(context),
+                Dependencies.getSessionManager(context)
+            ) as T
+        }
+    })
+
     val authState by viewModel.authState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var displayName by remember { mutableStateOf("") }
     var isLoginMode by remember { mutableStateOf(true) }
 
     LaunchedEffect(authState) {
@@ -77,6 +91,26 @@ fun AuthScreen(
             )
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            if (!isLoginMode) {
+                // Display Name Input
+                BasicTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Black),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(GraySurface, RoundedCornerShape(12.dp))
+                        .padding(16.dp),
+                    decorationBox = { innerTextField ->
+                        if (displayName.isEmpty()) {
+                            Text("Nom complet", color = GrayText)
+                        }
+                        innerTextField()
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Email Input
             BasicTextField(
@@ -123,7 +157,7 @@ fun AuthScreen(
                 if (isLoginMode) {
                     viewModel.signIn(email, password)
                 } else {
-                    viewModel.signUp(email, password)
+                    viewModel.signUp(email, password, displayName)
                 }
             })
 

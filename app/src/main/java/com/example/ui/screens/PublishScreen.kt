@@ -14,7 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.Dependencies
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.TransactionType
 import com.example.ui.theme.Black
@@ -24,7 +28,13 @@ import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
 
 @Composable
-fun PublishScreen(onBack: () -> Unit, viewModel: PublishViewModel = viewModel()) {
+fun PublishScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val viewModel: PublishViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return PublishViewModel(Dependencies.getBizoService(context)) as T
+        }
+    })
     LaunchedEffect(viewModel.publishSuccess) {
         if (viewModel.publishSuccess) {
             onBack()

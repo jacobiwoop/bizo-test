@@ -2,6 +2,70 @@ package com.example.data
 
 import com.example.ui.components.TransactionType
 
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class UserResource(
+    val id: String,
+    val email: String,
+    val display_name: String,
+    val username: String? = null,
+    val photo_url: String? = null,
+    val bio: String? = null,
+    val country_code: String? = null,
+    val rating: Double = 0.0,
+    val review_count: Int = 0,
+    val total_sales: Int = 0,
+    val is_verified: Boolean = false,
+    val has_seen_onboarding: Boolean = false,
+    val created_at: String
+)
+
+@Serializable
+data class ListingResource(
+    val id: String,
+    val title: String,
+    val description: String,
+    val type: String,
+    val price: String? = null,
+    val cash_complement: String? = null,
+    val exchange_for: String? = null,
+    val category: String,
+    val condition: String,
+    val delivery_mode: String,
+    val photos: List<String> = emptyList(),
+    val country: String,
+    val city: String,
+    val neighborhood: String? = null,
+    val tags: List<String> = emptyList(),
+    val view_count: Int = 0,
+    val favorite_count: Int = 0,
+    val status: String,
+    val is_boosted: Boolean = false,
+    val expires_at: String? = null,
+    val created_at: String,
+    val updated_at: String,
+    val owner: UserResource? = null
+)
+
+@Serializable
+data class ApiResponse<T>(
+    val data: T
+)
+
+@Serializable
+data class PaginatedResponse<T>(
+    val data: List<T>,
+    val links: Map<String, String?>? = null,
+    val meta: Map<String, Int?>? = null
+)
+
+@Serializable
+data class AuthResponse(
+    val token: String,
+    val user: UserResource
+)
+
 data class Product(
     val id: String,
     val title: String,

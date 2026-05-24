@@ -14,17 +14,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.data.supabase
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import com.example.Dependencies
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
-import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
-    val user = try { supabase.auth.currentSessionOrNull()?.user } catch (e: Exception) { null }
+    val context = LocalContext.current
+    val sessionManager = Dependencies.getSessionManager(context)
+    val bizoService = Dependencies.getBizoService(context)
+    val user by sessionManager.userData.collectAsState(initial = null)
     val email = user?.email ?: "Non renseigné"
     val coroutineScope = rememberCoroutineScope()
 
@@ -51,7 +56,7 @@ fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
         
         SecondaryButton(text = "Se déconnecter", onClick = { 
             coroutineScope.launch {
-                try { supabase.auth.signOut() } catch (e: Exception) {}
+                try { bizoService.logout() } catch (e: Exception) {}
             }
         })
     }

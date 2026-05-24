@@ -34,6 +34,11 @@ import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.PublishScreen
 import com.example.ui.screens.MyListingsScreen
 import com.example.ui.screens.SplashScreen
+import com.example.ui.screens.FavoritesScreen
+import com.example.ui.screens.ConversationThreadScreen
+import com.example.ui.screens.EditProfileScreen
+import com.example.ui.screens.NotificationsScreen
+import com.example.ui.screens.ForgotPasswordScreen
 import com.example.ui.theme.Black
 import com.example.ui.theme.GrayText
 
@@ -49,6 +54,13 @@ sealed class Route(val path: String) {
     object Messages : Route("messages")
     object Profile : Route("profile")
     object MyListings : Route("my_listings")
+    object Favorites : Route("favorites")
+    object ForgotPassword : Route("forgot_password")
+    object Notifications : Route("notifications")
+    object EditProfile : Route("edit_profile")
+    object Conversation : Route("conversation/{convId}") {
+        fun createRoute(convId: String) = "conversation/$convId"
+    }
 }
 
 @Composable
@@ -167,22 +179,41 @@ fun BizoApp() {
                 )
             }
             composable(Route.Auth.path) {
-                AuthScreen(onAuthenticated = {
-                    navController.navigate(Route.Home.path) {
-                        popUpTo(Route.Auth.path) { inclusive = true }
+                AuthScreen(
+                    onAuthenticated = {
+                        navController.navigate(Route.Home.path) {
+                            popUpTo(Route.Auth.path) { inclusive = true }
+                        }
+                    },
+                    onForgotPassword = {
+                        navController.navigate(Route.ForgotPassword.path)
                     }
-                })
+                )
+            }
+            composable(Route.ForgotPassword.path) {
+                ForgotPasswordScreen(onBack = { navController.popBackStack() })
             }
             composable(Route.Home.path) {
-                HomeScreen(onItemClick = { itemId ->
-                    navController.navigate(Route.Detail.createRoute(itemId))
-                })
+                HomeScreen(
+                    onItemClick = { itemId ->
+                        navController.navigate(Route.Detail.createRoute(itemId))
+                    },
+                    onNavigateToNotifications = {
+                        navController.navigate(Route.Notifications.path)
+                    }
+                )
+            }
+            composable(Route.Notifications.path) {
+                NotificationsScreen(onBack = { navController.popBackStack() })
             }
             composable(Route.Detail.path) { backStackEntry ->
                 val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
                 ItemDetailScreen(
                     itemId = itemId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToConversation = { convId ->
+                        navController.navigate(Route.Conversation.createRoute(convId))
+                    }
                 )
             }
             composable(Route.Publish.path) {
@@ -192,17 +223,45 @@ fun BizoApp() {
                 MessagesScreen()
             }
             composable(Route.Profile.path) {
-                ProfileScreen(onNavigateToMyListings = {
-                    navController.navigate(Route.MyListings.path)
-                })
+                ProfileScreen(
+                    onNavigateToMyListings = {
+                        navController.navigate(Route.MyListings.path)
+                    },
+                    onNavigateToFavorites = {
+                        navController.navigate(Route.Favorites.path)
+                    },
+                    onNavigateToEditProfile = {
+                        navController.navigate(Route.EditProfile.path)
+                    },
+                    onLogout = {
+                        navController.navigate(Route.Onboarding.path) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
             }
             composable(Route.MyListings.path) {
                 MyListingsScreen(
                     onBack = { navController.popBackStack() },
-                    onItemClick = { itemId ->
+                    onItemClick = { itemId: String ->
                         navController.navigate(Route.Detail.createRoute(itemId))
                     }
                 )
+            }
+            composable(Route.Favorites.path) {
+                FavoritesScreen(
+                    onBack = { navController.popBackStack() },
+                    onItemClick = { itemId: String ->
+                        navController.navigate(Route.Detail.createRoute(itemId))
+                    }
+                )
+            }
+            composable(Route.EditProfile.path) {
+                EditProfileScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Route.Conversation.path) { backStackEntry ->
+                val convId = backStackEntry.arguments?.getString("convId") ?: ""
+                ConversationThreadScreen(convId = convId, onBack = { navController.popBackStack() })
             }
         }
     }

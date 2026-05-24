@@ -24,6 +24,9 @@ class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
     var city by mutableStateOf("Cotonou")
     var neighborhood by mutableStateOf("")
 
+    var selectedPhotoBytes by mutableStateOf<ByteArray?>(null)
+    var selectedPhotoUri by mutableStateOf<String?>(null)
+
     var currentStep by mutableStateOf(1)
     var isPublishing by mutableStateOf(false)
     var publishSuccess by mutableStateOf(false)
@@ -33,19 +36,36 @@ class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
         
         viewModelScope.launch {
             try {
+                // Mapping category
+                val apiCategory = when (category) {
+                    "Électronique" -> "electronique"
+                    "Mode" -> "mode"
+                    "Maison" -> "maison"
+                    else -> category.lowercase()
+                }
+
+                // Use selected photo or dummy if none (backend requires at least 1)
+                val photo = selectedPhotoBytes ?: ByteArray(1024)
+
                 bizoService.createListing(
                     title = title,
                     description = description,
                     type = type?.name ?: "VENTE",
                     price = price.toLongOrNull(),
-                    category = category,
+                    category = apiCategory,
                     condition = condition.lowercase(),
-                    deliveryMode = deliveryMode.lowercase().replace(" ", "_"),
-                    country = country,
+                    deliveryMode = when(deliveryMode) {
+                        "Main propre" -> "main_propre"
+                        "Livraison" -> "livraison"
+                        "Les deux" -> "les_deux"
+                        else -> deliveryMode.lowercase()
+                    },
+                    country = "BJ", // Default to Benin
                     city = city,
                     neighborhood = neighborhood,
                     exchangeFor = exchangeFor,
-                    cashComplement = cashComplement.toLongOrNull()
+                    cashComplement = cashComplement.toLongOrNull(),
+                    photoBytes = photo
                 )
                 isPublishing = false
                 publishSuccess = true

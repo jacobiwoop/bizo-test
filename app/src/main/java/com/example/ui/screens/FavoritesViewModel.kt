@@ -10,23 +10,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class MyListingsViewModel(private val bizoService: BizoService) : ViewModel() {
-    private val _listings = MutableStateFlow<List<Product>>(emptyList())
-    val listings: StateFlow<List<Product>> = _listings.asStateFlow()
+class FavoritesViewModel(private val bizoService: BizoService) : ViewModel() {
+    private val _favorites = MutableStateFlow<List<Product>>(emptyList())
+    val favorites: StateFlow<List<Product>> = _favorites.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(true)
+    private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     init {
-        fetchMyListings()
+        fetchFavorites()
     }
 
-    private fun fetchMyListings() {
+    private fun fetchFavorites() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = bizoService.getMyListings()
-                val list = response.data.map { listing ->
+                val response = bizoService.getFavorites()
+                val list = response.data.mapNotNull { fav ->
+                    val listing = fav.listing ?: return@mapNotNull null
                     val id = listing.id
                     val title = listing.title
                     val price = if (!listing.price.isNullOrEmpty()) "${listing.price} FCFA" else "Gratuit / Échange"
@@ -44,12 +45,12 @@ class MyListingsViewModel(private val bizoService: BizoService) : ViewModel() {
                         location = city,
                         imageUrl = listing.photos.firstOrNull()?.let { if (it.startsWith("http")) it else "https://bizo.aiko.qzz.io$it" } ?: "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400",
                         type = type,
-                        sellerName = "Moi",
-                        timeAgo = "Récemment"
+                        sellerName = listing.owner?.display_name ?: "Utilisateur",
+                        timeAgo = "Favori"
                     )
                 }
                 
-                _listings.value = list
+                _favorites.value = list
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

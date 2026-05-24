@@ -22,6 +22,14 @@ data class UserResource(
 )
 
 @Serializable
+data class PartialUser(
+    val id: String,
+    val display_name: String,
+    val photo_url: String? = null,
+    val last_seen_at: String? = null
+)
+
+@Serializable
 data class ListingResource(
     val id: String,
     val title: String,
@@ -50,7 +58,8 @@ data class ListingResource(
 
 @Serializable
 data class ApiResponse<T>(
-    val data: T
+    val data: T,
+    val message: String? = null
 )
 
 @Serializable
@@ -75,7 +84,7 @@ data class ConversationResource(
     val last_message: String? = null,
     val last_message_at: String? = null,
     val unread_count: Int = 0,
-    val other_user: UserResource? = null,
+    val other_user: PartialUser? = null,
     val created_at: String
 )
 
@@ -135,13 +144,33 @@ data class ReviewResource(
     val rating: Int,
     val comment: String? = null,
     val created_at: String,
-    val author: UserResource? = null
+    val author: UserResource? = null,
+    val from_uid: String? = null,
+    val to_uid: String? = null,
+    val listing_id: String? = null
 )
 
 @Serializable
 data class ErrorResponse(
     val message: String,
     val errors: Map<String, List<String>>? = null
+)
+
+@Serializable
+data class CreateConversationResponse(
+    val data: ConversationResource,
+    val message: MessageResource
+)
+
+@Serializable
+data class NotificationResource(
+    val id: String,
+    val type: String,
+    val title: String,
+    val body: String,
+    val data: Map<String, String>? = null,
+    val is_read: Boolean = false,
+    val created_at: String
 )
 
 data class Product(

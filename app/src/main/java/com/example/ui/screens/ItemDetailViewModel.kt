@@ -14,12 +14,26 @@ data class ItemDetailState(
     val product: Product? = null,
     val isLoading: Boolean = true,
     val isFavorite: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val conversationId: String? = null
 )
 
 class ItemDetailViewModel(private val bizoService: BizoService) : ViewModel() {
     private val _state = MutableStateFlow(ItemDetailState())
     val state: StateFlow<ItemDetailState> = _state.asStateFlow()
+
+    fun contactSeller(onSuccess: (String) -> Unit) {
+        val product = _state.value.product ?: return
+        viewModelScope.launch {
+            try {
+                val response = bizoService.createConversation(product.id, "Bonjour, je suis intéressé par votre annonce ${product.title}.")
+                _state.value = _state.value.copy(conversationId = response.data.id)
+                onSuccess(response.data.id)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     fun loadItem(itemId: String) {
         viewModelScope.launch {
@@ -61,7 +75,7 @@ class ItemDetailViewModel(private val bizoService: BizoService) : ViewModel() {
         viewModelScope.launch {
             try {
                 val favorites = bizoService.getFavorites()
-                val isFavorite = favorites.data.any { it.id == itemId }
+                val isFavorite = favorites.data.any { it.listing_id == itemId }
                 _state.value = _state.value.copy(isFavorite = isFavorite)
             } catch (e: Exception) {
                 // Ignore if not logged in or error

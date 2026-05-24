@@ -31,7 +31,12 @@ import com.example.ui.theme.GrayText
 import kotlinx.coroutines.launch
 
 @Composable
-fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
+fun ProfileScreen(
+    onNavigateToMyListings: () -> Unit,
+    onNavigateToFavorites: () -> Unit,
+    onNavigateToEditProfile: () -> Unit,
+    onLogout: () -> Unit
+) {
     val context = LocalContext.current
     val sessionManager = Dependencies.getSessionManager(context)
     val bizoService = Dependencies.getBizoService(context)
@@ -72,12 +77,21 @@ fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
         
         Spacer(modifier = Modifier.height(24.dp))
         PrimaryButton(text = "Voir mes annonces", onClick = onNavigateToMyListings)
+        Spacer(modifier = Modifier.height(12.dp))
+        SecondaryButton(text = "Mes favoris", onClick = onNavigateToFavorites)
+        Spacer(modifier = Modifier.height(12.dp))
+        SecondaryButton(text = "Éditer le profil", onClick = onNavigateToEditProfile)
 
         Spacer(modifier = Modifier.weight(1f))
         
         SecondaryButton(text = "Se déconnecter", onClick = { 
             coroutineScope.launch {
-                try { bizoService.logout() } catch (e: Exception) {}
+                try { 
+                    bizoService.logout()
+                    onLogout()
+                } catch (e: Exception) {
+                    onLogout() // Navigate anyway if error
+                }
             }
         })
     }

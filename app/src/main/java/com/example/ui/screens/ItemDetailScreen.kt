@@ -54,7 +54,7 @@ import com.example.ui.components.SecondaryButton
 import com.example.ui.components.TransactionBadge
 
 @Composable
-fun ItemDetailScreen(itemId: String, onBack: () -> Unit) {
+fun ItemDetailScreen(itemId: String, onBack: () -> Unit, onNavigateToConversation: (String) -> Unit) {
     val context = LocalContext.current
     val viewModel: ItemDetailViewModel = viewModel(factory = object : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -223,7 +223,11 @@ fun ItemDetailScreen(itemId: String, onBack: () -> Unit) {
             Row {
                 SecondaryButton(
                     text = "Contacter",
-                    onClick = { /* TODO */ },
+                    onClick = { 
+                        viewModel.contactSeller { convId ->
+                            onNavigateToConversation(convId)
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(12.dp))

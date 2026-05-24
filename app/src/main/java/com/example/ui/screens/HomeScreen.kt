@@ -36,7 +36,7 @@ import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
 
 @Composable
-fun HomeScreen(onItemClick: (String) -> Unit) {
+fun HomeScreen(onItemClick: (String) -> Unit, onNavigateToNotifications: () -> Unit) {
     val context = LocalContext.current
     val viewModel: HomeViewModel = viewModel(factory = object : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -64,6 +64,7 @@ fun HomeScreen(onItemClick: (String) -> Unit) {
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
                     .background(GraySurface)
+                    .clickable { onNavigateToNotifications() }
                     .padding(8.dp)
             ) {
                 Text("🔔", style = MaterialTheme.typography.bodyLarge)
@@ -104,15 +105,18 @@ fun HomeScreen(onItemClick: (String) -> Unit) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Black)
             }
+        } else if (products.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Aucune annonce trouvée", color = GrayText)
+            }
         } else {
-            val list = if (products.isEmpty()) mockProducts else products
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 80.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(list) { product ->
+                items(products) { product ->
                     ProductCard(product = product, onClick = { onItemClick(product.id) })
                 }
             }

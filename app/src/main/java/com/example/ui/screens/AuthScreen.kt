@@ -31,6 +31,7 @@ import com.example.ui.theme.White
 @Composable
 fun AuthScreen(
     onAuthenticated: () -> Unit,
+    onForgotPassword: () -> Unit
 ) {
     val context = LocalContext.current
     val viewModel: AuthViewModel = viewModel(factory = object : ViewModelProvider.Factory {
@@ -151,7 +152,18 @@ fun AuthScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (isLoginMode) {
+                TextButton(
+                    onClick = { onForgotPassword() },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Mot de passe oublié ?", color = Black, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             PrimaryButton(text = if (isLoginMode) "Se connecter ->" else "S'inscrire ->", onClick = {
                 if (isLoginMode) {

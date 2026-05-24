@@ -59,6 +59,20 @@ class BizoService(
         sessionManager.clearSession()
     }
 
+    suspend fun forgotPassword(email: String): ApiResponse<Unit> {
+        return client.post("$baseUrl/auth/password/reset") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("email" to email))
+        }.body()
+    }
+
+    suspend fun resetPassword(params: Map<String, String>): ApiResponse<Unit> {
+        return client.post("$baseUrl/auth/password/update") {
+            contentType(ContentType.Application.Json)
+            setBody(params)
+        }.body()
+    }
+
     // LISTINGS
     suspend fun getListings(
         category: String? = null,
@@ -137,7 +151,7 @@ class BizoService(
     }
 
     // FAVORITES
-    suspend fun getFavorites(): PaginatedResponse<ListingResource> {
+    suspend fun getFavorites(): PaginatedResponse<FavoriteResource> {
         return client.get("$baseUrl/favorites") {
             auth()
         }.body()
@@ -167,7 +181,8 @@ class BizoService(
         city: String,
         neighborhood: String?,
         exchangeFor: String?,
-        cashComplement: Long?
+        cashComplement: Long?,
+        photoBytes: ByteArray? = null
     ): ApiResponse<ListingResource> {
         return client.submitFormWithBinaryData(
             url = "$baseUrl/listings",
@@ -184,7 +199,13 @@ class BizoService(
                 if (neighborhood != null) append("neighborhood", neighborhood)
                 if (exchangeFor != null) append("exchange_for", exchangeFor)
                 if (cashComplement != null) append("cash_complement", cashComplement)
-                // In a real app we would append photos here
+                
+                if (photoBytes != null) {
+                    append("photos[]", photoBytes, Headers.build {
+                        append(HttpHeaders.ContentType, "image/webp")
+                        append(HttpHeaders.ContentDisposition, "filename=\"listing.webp\"")
+                    })
+                }
             }
         ) {
             auth()
@@ -198,7 +219,7 @@ class BizoService(
         }.body()
     }
 
-    suspend fun createConversation(listingId: String, message: String): ApiResponse<ConversationResource> {
+    suspend fun createConversation(listingId: String, message: String): CreateConversationResponse {
         return client.post("$baseUrl/conversations") {
             auth()
             contentType(ContentType.Application.Json)
@@ -212,7 +233,7 @@ class BizoService(
         }.body()
     }
 
-    suspend fun sendTextMessage(convId: String, text: String): MessageResource {
+    suspend fun sendTextMessage(convId: String, text: String): ApiResponse<MessageResource> {
         return client.post("$baseUrl/conversations/$convId/messages") {
             auth()
             contentType(ContentType.Application.Json)
@@ -232,7 +253,7 @@ class BizoService(
         buyerId: String,
         type: String,
         finalPrice: Int
-    ): TransactionResource {
+    ): ApiResponse<TransactionResource> {
         return client.post("$baseUrl/transactions") {
             auth()
             contentType(ContentType.Application.Json)
@@ -246,7 +267,7 @@ class BizoService(
     }
 
     // REVIEWS
-    suspend fun createReview(transactionId: String, rating: Int, comment: String?): ReviewResource {
+    suspend fun createReview(transactionId: String, rating: Int, comment: String?): ApiResponse<ReviewResource> {
         return client.post("$baseUrl/reviews") {
             auth()
             contentType(ContentType.Application.Json)
@@ -260,6 +281,25 @@ class BizoService(
 
     suspend fun getUserReviews(userId: String): PaginatedResponse<ReviewResource> {
         return client.get("$baseUrl/users/$userId/reviews").body()
+    }
+
+    // NOTIFICATIONS
+    suspend fun getNotifications(): PaginatedResponse<NotificationResource> {
+        return client.get("$baseUrl/notifications") {
+            auth()
+        }.body()
+    }
+
+    suspend fun markNotificationRead(id: String) {
+        client.post("$baseUrl/notifications/$id/read") {
+            auth()
+        }
+    }
+
+    suspend fun markAllNotificationsRead() {
+        client.post("$baseUrl/notifications/read-all") {
+            auth()
+        }
     }
 }
 

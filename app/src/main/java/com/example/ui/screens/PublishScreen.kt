@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +28,10 @@ import com.example.ui.theme.GraySurface
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.White
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
+
 @Composable
 fun PublishScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -35,6 +40,22 @@ fun PublishScreen(onBack: () -> Unit) {
             return PublishViewModel(Dependencies.getBizoService(context)) as T
         }
     })
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            viewModel.selectedPhotoUri = it.toString()
+            try {
+                context.contentResolver.openInputStream(it)?.use { stream ->
+                    viewModel.selectedPhotoBytes = stream.readBytes()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     LaunchedEffect(viewModel.publishSuccess) {
         if (viewModel.publishSuccess) {
             onBack()
@@ -64,7 +85,7 @@ fun PublishScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         when (viewModel.currentStep) {
-            1 -> Step1Photos(viewModel)
+            1 -> Step1Photos(viewModel, onAddPhoto = { launcher.launch("image/*") })
             2 -> Step2Infos(viewModel)
             3 -> Step3Category(viewModel)
             4 -> Step4TransactionType(viewModel)
@@ -91,20 +112,43 @@ fun PublishScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun Step1Photos(viewModel: PublishViewModel) {
+fun Step1Photos(viewModel: PublishViewModel, onAddPhoto: () -> Unit) {
     Text("Ajoute des photos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
     Spacer(modifier = Modifier.height(8.dp))
-    Text("Maximum 10 photos. La première sera la photo principale.", color = GrayText)
+    Text("La première sera la photo principale. (Minimum 1 requise)", color = GrayText)
     Spacer(modifier = Modifier.height(24.dp))
+    
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
-            .background(GraySurface, RoundedCornerShape(12.dp))
-            .clickable { /* Simulate picking photo */ },
+            .height(240.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(GraySurface)
+            .clickable { onAddPhoto() },
         contentAlignment = Alignment.Center
     ) {
-        Text("📷 Ajouter une photo", color = Black, fontWeight = FontWeight.Bold)
+        if (viewModel.selectedPhotoUri != null) {
+            AsyncImage(
+                model = viewModel.selectedPhotoUri,
+                contentDescription = "Preview",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Changer la photo", color = White, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("📷", style = MaterialTheme.typography.displayMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Ajouter une photo", color = Black, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 

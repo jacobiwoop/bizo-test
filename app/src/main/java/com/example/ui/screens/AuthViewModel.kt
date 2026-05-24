@@ -39,7 +39,7 @@ class AuthViewModel(
                 _authState.value = AuthState.SUCCESS
             } catch (e: Exception) {
                 _authState.value = AuthState.ERROR
-                _errorMessage.value = "Email ou mot de passe incorrect"
+                _errorMessage.value = e.message ?: "Email ou mot de passe incorrect"
             }
         }
     }

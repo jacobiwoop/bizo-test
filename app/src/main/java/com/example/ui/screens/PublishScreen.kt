@@ -39,6 +39,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
+
 @Composable
 fun PublishScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -54,10 +58,30 @@ fun PublishScreen(onBack: () -> Unit) {
         uris.forEach { uri ->
             try {
                 context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val bytes = stream.readBytes()
-                    val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    val originalBytes = stream.readBytes()
+                    BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size, options)
+                    
+                    var inSdkVersion = 1
+                    val maxDimension = 1024
+                    if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
+                        val halfHeight = options.outHeight / 2
+                        val halfWidth = options.outWidth / 2
+                        while (halfHeight / inSdkVersion >= maxDimension && halfWidth / inSdkVersion >= maxDimension) {
+                            inSdkVersion *= 2
+                        }
+                    }
+
+                    val decodeOptions = BitmapFactory.Options().apply { inSampleSize = inSdkVersion }
+                    val bitmap = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size, decodeOptions)
+                    
+                    val outputStream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                    val compressedBytes = outputStream.toByteArray()
+                    
+                    val mimeType = "image/jpeg"
                     val filename = "photo_${System.currentTimeMillis()}.jpg"
-                    viewModel.addPhoto(com.example.data.PickedImage(uri.toString(), bytes, mimeType, filename))
+                    viewModel.addPhoto(com.example.data.PickedImage(uri.toString(), compressedBytes, mimeType, filename))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

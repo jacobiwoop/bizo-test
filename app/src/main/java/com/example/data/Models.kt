@@ -13,11 +13,11 @@ data class UserResource(
     val photo_url: String? = null,
     val bio: String? = null,
     val country_code: String? = null,
-    val rating: Double = 0.0,
-    val review_count: Int = 0,
-    val total_sales: Int = 0,
-    val is_verified: Boolean = false,
-    val has_seen_onboarding: Boolean = false,
+    val rating: Double? = 0.0,
+    val review_count: Int? = 0,
+    val total_sales: Int? = 0,
+    val is_verified: Boolean? = false,
+    val has_seen_onboarding: Boolean? = false,
     val created_at: String
 )
 
@@ -46,14 +46,19 @@ data class ListingResource(
     val city: String,
     val neighborhood: String? = null,
     val tags: List<String> = emptyList(),
-    val view_count: Int = 0,
-    val favorite_count: Int = 0,
-    val status: String,
-    val is_boosted: Boolean = false,
+    val view_count: Int? = 0,
+    val favorite_count: Int? = 0,
+    val status: String? = null,
+    val is_boosted: Boolean? = false,
     val expires_at: String? = null,
     val created_at: String,
     val updated_at: String,
     val owner: UserResource? = null
+)
+
+@Serializable
+data class PlainMessageResponse(
+    val message: String
 )
 
 @Serializable

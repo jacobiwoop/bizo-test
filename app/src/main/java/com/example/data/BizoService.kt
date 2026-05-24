@@ -26,12 +26,31 @@ class BizoService(
         }
     }
 
+    private suspend fun handleError(e: ClientRequestException): Exception {
+        val response = e.response
+        if (response.status == HttpStatusCode.PayloadTooLarge) {
+            return Exception("Les photos sont trop volumineuses. Veuillez réduire leur nombre ou leur taille.")
+        }
+        
+        return try {
+            val errorBody = response.body<ErrorResponse>()
+            val detailMessage = errorBody.errors?.values?.flatten()?.joinToString("\n")
+            Exception(detailMessage ?: errorBody.message)
+        } catch (parseException: Exception) {
+            Exception("Une erreur serveur est survenue (Status: ${response.status.value})")
+        }
+    }
+
     // AUTH
     suspend fun login(email: String, password: String): AuthResponse {
-        return client.post("$baseUrl/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(mapOf("email" to email, "password" to password))
-        }.body()
+        try {
+            return client.post("$baseUrl/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("email" to email, "password" to password))
+            }.body()
+        } catch (e: ClientRequestException) {
+            throw handleError(e)
+        }
     }
 
     suspend fun register(
@@ -40,16 +59,20 @@ class BizoService(
         displayName: String,
         username: String?
     ): AuthResponse {
-        return client.post("$baseUrl/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "email" to email,
-                "password" to password,
-                "password_confirmation" to password,
-                "display_name" to displayName,
-                "username" to username
-            ))
-        }.body()
+        try {
+            return client.post("$baseUrl/auth/register") {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf(
+                    "email" to email,
+                    "password" to password,
+                    "password_confirmation" to password,
+                    "display_name" to displayName,
+                    "username" to username
+                ))
+            }.body()
+        } catch (e: ClientRequestException) {
+            throw handleError(e)
+        }
     }
 
     suspend fun logout() {
@@ -59,18 +82,28 @@ class BizoService(
         sessionManager.clearSession()
     }
 
-    suspend fun forgotPassword(email: String): ApiResponse<Unit> {
-        return client.post("$baseUrl/auth/password/reset") {
-            contentType(ContentType.Application.Json)
-            setBody(mapOf("email" to email))
-        }.body()
+    suspend fun forgotPassword(email: String): PlainMessageResponse {
+        try {
+            val response = client.post("$baseUrl/auth/password/reset") {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("email" to email))
+            }
+            return response.body()
+        } catch (e: ClientRequestException) {
+            throw handleError(e)
+        }
     }
 
-    suspend fun resetPassword(params: Map<String, String>): ApiResponse<Unit> {
-        return client.post("$baseUrl/auth/password/update") {
-            contentType(ContentType.Application.Json)
-            setBody(params)
-        }.body()
+    suspend fun resetPassword(params: Map<String, String>): PlainMessageResponse {
+        try {
+            val response = client.post("$baseUrl/auth/password/update") {
+                contentType(ContentType.Application.Json)
+                setBody(params)
+            }
+            return response.body()
+        } catch (e: ClientRequestException) {
+            throw handleError(e)
+        }
     }
 
     // LISTINGS
@@ -184,32 +217,36 @@ class BizoService(
         cashComplement: Long?,
         photos: List<PickedImage>
     ): ApiResponse<ListingResource> {
-        return client.submitFormWithBinaryData(
-            url = "$baseUrl/listings",
-            formData = formData {
-                append("title", title)
-                append("description", description)
-                append("type", type)
-                if (price != null) append("price", price)
-                append("category", category)
-                append("condition", condition)
-                append("delivery_mode", deliveryMode)
-                append("country", country)
-                append("city", city)
-                if (neighborhood != null) append("neighborhood", neighborhood)
-                if (exchangeFor != null) append("exchange_for", exchangeFor)
-                if (cashComplement != null) append("cash_complement", cashComplement)
-                
-                photos.forEach { photo ->
-                    append("photos[]", photo.bytes, Headers.build {
-                        append(HttpHeaders.ContentType, photo.mimeType)
-                        append(HttpHeaders.ContentDisposition, "filename=\"${photo.filename}\"")
-                    })
+        try {
+            return client.submitFormWithBinaryData(
+                url = "$baseUrl/listings",
+                formData = formData {
+                    append("title", title)
+                    append("description", description)
+                    append("type", type)
+                    if (price != null) append("price", price)
+                    append("category", category)
+                    append("condition", condition)
+                    append("delivery_mode", deliveryMode)
+                    append("country", country)
+                    append("city", city)
+                    if (neighborhood != null) append("neighborhood", neighborhood)
+                    if (exchangeFor != null) append("exchange_for", exchangeFor)
+                    if (cashComplement != null) append("cash_complement", cashComplement)
+                    
+                    photos.forEach { photo ->
+                        append("photos[]", photo.bytes, Headers.build {
+                            append(HttpHeaders.ContentType, photo.mimeType)
+                            append(HttpHeaders.ContentDisposition, "filename=\"${photo.filename}\"")
+                        })
+                    }
                 }
-            }
-        ) {
-            auth()
-        }.body()
+            ) {
+                auth()
+            }.body()
+        } catch (e: ClientRequestException) {
+            throw handleError(e)
+        }
     }
 
     // CONVERSATIONS

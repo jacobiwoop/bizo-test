@@ -49,7 +49,7 @@ class ForgotPasswordViewModel(private val bizoService: BizoService) : ViewModel(
                 message = response.message ?: "Un email de réinitialisation a été envoyé."
                 isLoading = false
             } catch (e: Exception) {
-                error = "Une erreur est survenue. Vérifiez votre connexion."
+                error = e.message ?: "Une erreur est survenue."
                 isLoading = false
             }
         }

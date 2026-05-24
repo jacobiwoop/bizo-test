@@ -118,7 +118,7 @@ class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
                 publishSuccess = true
             } catch (e: Exception) {
                 e.printStackTrace()
-                errorMessage = "Erreur lors de la publication. Vérifiez vos données et votre connexion."
+                errorMessage = e.message ?: "Une erreur inattendue est survenue."
                 isPublishing = false
             }
         }

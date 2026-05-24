@@ -66,6 +66,84 @@ data class AuthResponse(
     val user: UserResource
 )
 
+@Serializable
+data class ConversationResource(
+    val id: String,
+    val listing_id: String,
+    val listing_title: String,
+    val listing_photo: String? = null,
+    val last_message: String? = null,
+    val last_message_at: String? = null,
+    val unread_count: Int = 0,
+    val other_user: UserResource? = null,
+    val created_at: String
+)
+
+@Serializable
+data class MessageResource(
+    val id: String,
+    val conv_id: String,
+    val sender_id: String,
+    val type: String,
+    val text: String? = null,
+    val image_url: String? = null,
+    val proposal: TrocProposal? = null,
+    val is_read: Boolean = false,
+    val created_at: String
+)
+
+@Serializable
+data class TrocProposal(
+    val offered_listing_id: String,
+    val offered_listing_title: String,
+    val offered_listing_photo: String? = null,
+    val cash_amount: Int? = null,
+    val status: String,
+    val refusal_reason: String? = null
+)
+
+@Serializable
+data class FavoriteResource(
+    val id: String,
+    val user_id: String,
+    val listing_id: String,
+    val listing_title: String,
+    val listing_photo: String? = null,
+    val listing_price: String? = null,
+    val listing_type: String,
+    val created_at: String,
+    val listing: ListingResource? = null
+)
+
+@Serializable
+data class TransactionResource(
+    val id: String,
+    val listing_id: String,
+    val seller_id: String,
+    val buyer_id: String,
+    val type: String,
+    val final_price: Int,
+    val seller_reviewed: Boolean = false,
+    val buyer_reviewed: Boolean = false,
+    val created_at: String
+)
+
+@Serializable
+data class ReviewResource(
+    val id: String,
+    val transaction_id: String,
+    val rating: Int,
+    val comment: String? = null,
+    val created_at: String,
+    val author: UserResource? = null
+)
+
+@Serializable
+data class ErrorResponse(
+    val message: String,
+    val errors: Map<String, List<String>>? = null
+)
+
 data class Product(
     val id: String,
     val title: String,

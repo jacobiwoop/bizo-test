@@ -22,6 +22,12 @@ import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import com.example.ui.theme.GraySurface
+import com.example.ui.theme.GrayText
 import kotlinx.coroutines.launch
 
 @Composable
@@ -31,25 +37,40 @@ fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
     val bizoService = Dependencies.getBizoService(context)
     val user by sessionManager.userData.collectAsState(initial = null)
     val email = user?.email ?: "Non renseigné"
+    val displayName = user?.display_name ?: "Non renseigné"
+    val bio = user?.bio ?: "Pas de bio"
+    val rating = user?.rating ?: 0.0
     val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
-            .padding(20.dp)
+            .padding(24.dp)
     ) {
-        Text("Profil", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Black)
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Text("Email : $email", style = MaterialTheme.typography.bodyLarge)
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("UID : ${user?.id}", style = MaterialTheme.typography.bodySmall)
-
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(text = "Mon Profil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
         Spacer(modifier = Modifier.height(32.dp))
         
+        // Avatar Placeholder
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .background(GraySurface, RoundedCornerShape(50.dp))
+                .align(Alignment.CenterHorizontally),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = displayName.take(1).uppercase(), style = MaterialTheme.typography.displaySmall, color = GrayText)
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+
+        ProfileItem(label = "Nom", value = displayName)
+        ProfileItem(label = "Email", value = email)
+        ProfileItem(label = "Bio", value = bio)
+        ProfileItem(label = "Note", value = if (rating > 0) "$rating / 5" else "Aucun avis")
+        
+        Spacer(modifier = Modifier.height(24.dp))
         PrimaryButton(text = "Voir mes annonces", onClick = onNavigateToMyListings)
 
         Spacer(modifier = Modifier.weight(1f))
@@ -59,5 +80,14 @@ fun ProfileScreen(onNavigateToMyListings: () -> Unit) {
                 try { bizoService.logout() } catch (e: Exception) {}
             }
         })
+    }
+}
+
+@Composable
+fun ProfileItem(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = GrayText)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = Black)
     }
 }

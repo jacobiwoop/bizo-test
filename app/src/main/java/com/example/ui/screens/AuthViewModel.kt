@@ -26,15 +26,15 @@ class AuthViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    fun signIn(email: String, parseword: String) {
-        if (email.isEmpty() || parseword.isEmpty()) {
+    fun signIn(email: String, password: String) {
+        if (email.isEmpty() || password.isEmpty()) {
             _errorMessage.value = "Veuillez remplir tous les champs"
             return
         }
         _authState.value = AuthState.LOADING
         viewModelScope.launch {
             try {
-                val response = bizoService.login(email, parseword)
+                val response = bizoService.login(email, password)
                 sessionManager.saveSession(response.token, response.user)
                 _authState.value = AuthState.SUCCESS
             } catch (e: Exception) {
@@ -44,15 +44,15 @@ class AuthViewModel(
         }
     }
 
-    fun signUp(email: String, parseword: String, displayName: String) {
-        if (email.isEmpty() || parseword.isEmpty() || displayName.isEmpty()) {
+    fun signUp(email: String, password: String, displayName: String) {
+        if (email.isEmpty() || password.isEmpty() || displayName.isEmpty()) {
             _errorMessage.value = "Veuillez remplir tous les champs"
             return
         }
         _authState.value = AuthState.LOADING
         viewModelScope.launch {
             try {
-                val response = bizoService.register(email, parseword, displayName, null)
+                val response = bizoService.register(email, password, displayName, null)
                 sessionManager.saveSession(response.token, response.user)
                 _authState.value = AuthState.SUCCESS
             } catch (e: Exception) {

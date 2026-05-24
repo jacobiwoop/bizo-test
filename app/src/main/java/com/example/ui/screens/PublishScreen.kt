@@ -110,7 +110,7 @@ fun Step1Photos(viewModel: PublishViewModel) {
 
 @Composable
 fun Step2Infos(viewModel: PublishViewModel) {
-    Text("Infos de base", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
+    Text("Détails de l'article", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
     Spacer(modifier = Modifier.height(16.dp))
     OutlinedTextField(
         value = viewModel.title,
@@ -119,11 +119,39 @@ fun Step2Infos(viewModel: PublishViewModel) {
         modifier = Modifier.fillMaxWidth()
     )
     Spacer(modifier = Modifier.height(16.dp))
+    
+    Text("État de l'article", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Black)
+    val conditions = listOf("Neuf", "Excellent", "Bon", "Correct")
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        conditions.forEach { cond ->
+            FilterChip(
+                selected = viewModel.condition == cond,
+                onClick = { viewModel.condition = cond },
+                label = { Text(cond) }
+            )
+        }
+    }
+    
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Text("Mode de livraison", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Black)
+    val modes = listOf("Main propre", "Livraison", "Les deux")
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        modes.forEach { mode ->
+            FilterChip(
+                selected = viewModel.deliveryMode == mode,
+                onClick = { viewModel.deliveryMode = mode },
+                label = { Text(mode) }
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
     OutlinedTextField(
         value = viewModel.description,
         onValueChange = { viewModel.description = it },
         label = { Text("Description") },
-        modifier = Modifier.fillMaxWidth().height(150.dp)
+        modifier = Modifier.fillMaxWidth().height(120.dp)
     )
 }
 

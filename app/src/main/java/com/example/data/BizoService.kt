@@ -82,9 +82,56 @@ class BizoService(
         }.body()
     }
 
+    // SEARCH
+    suspend fun search(
+        query: String,
+        category: String? = null,
+        city: String? = null,
+        minPrice: Int? = null,
+        maxPrice: Int? = null
+    ): PaginatedResponse<ListingResource> {
+        return client.get("$baseUrl/search") {
+            parameter("q", query)
+            parameter("category", category)
+            parameter("city", city)
+            parameter("min_price", minPrice)
+            parameter("max_price", maxPrice)
+        }.body()
+    }
+
     // PROFILE
     suspend fun getProfile(): UserResource {
         return client.get("$baseUrl/profile") {
+            auth()
+        }.body()
+    }
+
+    suspend fun saveFcmToken(token: String): ApiResponse<Unit> {
+        return client.post("$baseUrl/auth/fcm-token") {
+            auth()
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("fcm_token" to token))
+        }.body()
+    }
+
+    suspend fun updateProfile(params: Map<String, Any?>): UserResource {
+        return client.put("$baseUrl/profile") {
+            auth()
+            contentType(ContentType.Application.Json)
+            setBody(params)
+        }.body()
+    }
+
+    suspend fun uploadAvatar(avatarBytes: ByteArray, filename: String): UserResource {
+        return client.submitFormWithBinaryData(
+            url = "$baseUrl/profile/avatar",
+            formData = formData {
+                append("avatar", avatarBytes, Headers.build {
+                    append(HttpHeaders.ContentType, "image/jpeg")
+                    append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
+                })
+            }
+        ) {
             auth()
         }.body()
     }
@@ -142,6 +189,77 @@ class BizoService(
         ) {
             auth()
         }.body()
+    }
+
+    // CONVERSATIONS
+    suspend fun getConversations(): PaginatedResponse<ConversationResource> {
+        return client.get("$baseUrl/conversations") {
+            auth()
+        }.body()
+    }
+
+    suspend fun createConversation(listingId: String, message: String): ApiResponse<ConversationResource> {
+        return client.post("$baseUrl/conversations") {
+            auth()
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("listing_id" to listingId, "message" to message))
+        }.body()
+    }
+
+    suspend fun getMessages(convId: String): PaginatedResponse<MessageResource> {
+        return client.get("$baseUrl/conversations/$convId/messages") {
+            auth()
+        }.body()
+    }
+
+    suspend fun sendTextMessage(convId: String, text: String): MessageResource {
+        return client.post("$baseUrl/conversations/$convId/messages") {
+            auth()
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("type" to "text", "text" to text))
+        }.body()
+    }
+
+    suspend fun markRead(convId: String) {
+        client.post("$baseUrl/conversations/$convId/read") {
+            auth()
+        }
+    }
+
+    // TRANSACTIONS
+    suspend fun createTransaction(
+        listingId: String,
+        buyerId: String,
+        type: String,
+        finalPrice: Int
+    ): TransactionResource {
+        return client.post("$baseUrl/transactions") {
+            auth()
+            contentType(ContentType.Application.Json)
+            setBody(mapOf(
+                "listing_id" to listingId,
+                "buyer_id" to buyerId,
+                "type" to type,
+                "final_price" to finalPrice
+            ))
+        }.body()
+    }
+
+    // REVIEWS
+    suspend fun createReview(transactionId: String, rating: Int, comment: String?): ReviewResource {
+        return client.post("$baseUrl/reviews") {
+            auth()
+            contentType(ContentType.Application.Json)
+            setBody(mapOf(
+                "transaction_id" to transactionId,
+                "rating" to rating,
+                "comment" to comment
+            ))
+        }.body()
+    }
+
+    suspend fun getUserReviews(userId: String): PaginatedResponse<ReviewResource> {
+        return client.get("$baseUrl/users/$userId/reviews").body()
     }
 }
 

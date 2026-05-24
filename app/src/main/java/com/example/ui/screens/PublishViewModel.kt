@@ -12,9 +12,9 @@ import kotlinx.coroutines.launch
 class PublishViewModel(private val bizoService: BizoService) : ViewModel() {
     var title by mutableStateOf("")
     var description by mutableStateOf("")
-    var condition by mutableStateOf("")
-    var deliveryMode by mutableStateOf("")
-    var category by mutableStateOf("")
+    var condition by mutableStateOf("Bon")
+    var deliveryMode by mutableStateOf("Les deux")
+    var category by mutableStateOf("Électronique")
     var type by mutableStateOf<TransactionType?>(null)
     var price by mutableStateOf("")
     var exchangeFor by mutableStateOf("")

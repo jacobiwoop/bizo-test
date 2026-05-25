@@ -72,7 +72,8 @@ class ConversationThreadViewModel(
         viewModelScope.launch {
             try {
                 val response = bizoService.getMessages(id)
-                _messages.value = response.data.reversed()
+                // On garde l'ordre : index 0 = le plus récent pour reverseLayout = true
+                _messages.value = response.data
                 DebugLogger.success(LogCategory.MESSAGE, "Messages chargés", "Count: ${response.data.size}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.MESSAGE, "Erreur chargement messages", e.message)
@@ -100,10 +101,9 @@ class ConversationThreadViewModel(
                     _currentConvId.value = realId
                     _conversation.value = response.data
                     _messages.value = listOf(response.message)
-                    _onConversationCreated.value = realId
                     DebugLogger.success(LogCategory.CONVERSATION, "Conversation créée", "ID: $realId")
                     
-                    loadMessages(realId)
+                    _onConversationCreated.value = realId
                 } catch (e: Exception) {
                     DebugLogger.error(LogCategory.CONVERSATION, "Erreur création conversation", e.message)
                     e.printStackTrace()

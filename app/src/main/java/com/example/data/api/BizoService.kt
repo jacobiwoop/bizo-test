@@ -54,6 +54,9 @@ interface BizoService {
         @Body body: Map<String, String>
     ): CreateConversationResponse
 
+    @POST("listings")
+    suspend fun createListing(@Body body: Map<String, String>): DataResponse<ListingResource>
+
     @DELETE("listings/{id}")
     suspend fun deleteListing(@Path("id") id: String): Map<String, String>
 

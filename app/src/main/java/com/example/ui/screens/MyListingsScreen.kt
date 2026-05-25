@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.data.ListingResource
+import com.example.data.*
 import com.example.data.api.BizoService
 import com.example.ui.components.ListingItem
 import androidx.lifecycle.ViewModel
@@ -33,11 +33,14 @@ class MyListingsViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 
     private fun loadMyListings() {
+        DebugLogger.info(LogCategory.LISTING, "Chargement de 'Mes annonces'")
         viewModelScope.launch {
             try {
                 val response = bizoService.getMyListings()
                 _listings.value = response.data
+                DebugLogger.success(LogCategory.LISTING, "Mes annonces chargées", "Count: ${response.data.size}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.LISTING, "Erreur chargement mes annonces", e.message)
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false

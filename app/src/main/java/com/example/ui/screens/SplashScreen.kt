@@ -9,17 +9,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.data.SessionManager
+import com.example.data.*
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
     LaunchedEffect(Unit) {
+        DebugLogger.info(LogCategory.NAV, "Démarrage de l'application (Splash)")
         delay(1500) // Petit délai pour le branding
-        if (sessionManager.getAuthToken() != null) {
+        val token = sessionManager.getAuthToken()
+        if (token != null) {
+            DebugLogger.success(LogCategory.AUTH, "Session active trouvée", "Token present")
             navController.navigate("home") {
                 popUpTo("splash") { inclusive = true }
             }
         } else {
+            DebugLogger.warn(LogCategory.AUTH, "Aucune session active", "Redirection vers Login")
             navController.navigate("auth") {
                 popUpTo("splash") { inclusive = true }
             }

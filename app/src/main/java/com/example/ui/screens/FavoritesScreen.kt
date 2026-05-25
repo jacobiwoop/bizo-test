@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.data.FavoriteResource
+import com.example.data.*
 import com.example.data.api.BizoService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -40,11 +40,14 @@ class FavoritesViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 
     private fun loadFavorites() {
+        DebugLogger.info(LogCategory.FAVORITE, "Chargement des favoris")
         viewModelScope.launch {
             try {
                 val response = bizoService.getFavorites()
                 _favorites.value = response.data
+                DebugLogger.success(LogCategory.FAVORITE, "Favoris chargés", "Count: ${response.data.size}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.FAVORITE, "Erreur chargement favoris", e.message)
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -53,11 +56,14 @@ class FavoritesViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 
     fun removeFavorite(listingId: String) {
+        DebugLogger.info(LogCategory.FAVORITE, "Retrait du favori $listingId")
         viewModelScope.launch {
             try {
                 bizoService.removeFavorite(listingId)
                 _favorites.value = _favorites.value.filter { it.listing_id != listingId }
+                DebugLogger.success(LogCategory.FAVORITE, "Favori retiré")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.FAVORITE, "Erreur retrait favori", e.message)
                 e.printStackTrace()
             }
         }
@@ -106,6 +112,7 @@ fun FavoritesScreen(navController: NavController, bizoService: BizoService) {
                     FavoriteItemView(
                         favorite = favorite,
                         onClick = {
+                            DebugLogger.info(LogCategory.NAV, "Ouverture détail depuis favoris", "ID: ${favorite.listing_id}")
                             navController.navigate("item_detail/${favorite.listing_id}")
                         },
                         onRemove = {

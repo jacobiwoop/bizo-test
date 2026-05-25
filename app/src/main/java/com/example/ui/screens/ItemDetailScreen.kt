@@ -50,6 +50,9 @@ class ItemDetailViewModel(
     private val _isFavorited = MutableStateFlow(false)
     val isFavorited: StateFlow<Boolean> = _isFavorited
 
+    private val _isDeleting = MutableStateFlow(false)
+    val isDeleting: StateFlow<Boolean> = _isDeleting
+
     init {
         loadListing()
         checkFavoriteStatus()
@@ -105,6 +108,7 @@ class ItemDetailViewModel(
     fun deleteListing(onSuccess: () -> Unit) {
         DebugLogger.warn(LogCategory.LISTING, "Tentative de suppression de l'annonce $id")
         viewModelScope.launch {
+            _isDeleting.value = true
             try {
                 bizoService.deleteListing(id)
                 DebugLogger.success(LogCategory.LISTING, "Annonce supprimée avec succès")
@@ -112,6 +116,8 @@ class ItemDetailViewModel(
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.LISTING, "Erreur suppression annonce", e.message)
                 e.printStackTrace()
+            } finally {
+                _isDeleting.value = false
             }
         }
     }
@@ -134,6 +140,9 @@ fun ItemDetailScreen(
     var selectedPhotoIndex by remember { mutableStateOf(0) }
 
     val isFavorited by viewModel.isFavorited.collectAsState()
+    val isDeleting by viewModel.isDeleting.collectAsState()
+
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -181,22 +190,23 @@ fun ItemDetailScreen(
                         if (isOwner) {
                             PrimaryButton(
                                 text = "Modifier",
-                                onClick = { /* TODO: navigation */ },
+                                onClick = { 
+                                    DebugLogger.info(LogCategory.NAV, "Navigation vers édition annonce", "ID: $id")
+                                    navController.navigate("edit_listing/$id")
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                             SecondaryButton(
                                 text = "Supprimer",
-                                onClick = { 
-                                    viewModel.deleteListing {
-                                        navController.popBackStack()
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
+                                onClick = { showDeleteConfirm = true },
+                                modifier = Modifier.weight(1f),
+                                isLoading = isDeleting
                             )
                         } else {
                             PrimaryButton(
                                 text = "Contacter",
                                 onClick = {
+                                    DebugLogger.info(LogCategory.NAV, "Navigation vers contact direct", "ListingID: ${item.id}")
                                     navController.navigate("conversation/new_${item.id}")
                                 },
                                 modifier = Modifier.weight(1f)
@@ -204,6 +214,7 @@ fun ItemDetailScreen(
                             SecondaryButton(
                                 text = "Troc",
                                 onClick = {
+                                    DebugLogger.info(LogCategory.NAV, "Navigation vers proposition de troc", "ListingID: ${item.id}")
                                     navController.navigate("conversation/new_${item.id}?type=troc")
                                 },
                                 modifier = Modifier.weight(1f)
@@ -340,6 +351,41 @@ fun ItemDetailScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Supprimer l'annonce ?") },
+            text = { Text("Cette action est irréversible. Voulez-vous vraiment supprimer cette annonce ?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        viewModel.deleteListing {
+                            navController.popBackStack()
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    if (isDeleting) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
+             contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
         }
     }
     

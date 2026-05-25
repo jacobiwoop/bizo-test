@@ -24,6 +24,7 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    isLoading: Boolean = false,
     containerColor: Color = Black,
     contentColor: Color = White
 ) {
@@ -37,9 +38,13 @@ fun PrimaryButton(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        enabled = enabled
+        enabled = enabled && !isLoading
     ) {
-        Text(text = text, style = MaterialTheme.typography.titleMedium)
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = contentColor, strokeWidth = 2.dp)
+        } else {
+            Text(text = text, style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
 
@@ -48,7 +53,8 @@ fun SecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isLoading: Boolean = false
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -57,9 +63,13 @@ fun SecondaryButton(
             .height(56.dp),
         shape = RoundedCornerShape(12.dp),
         border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp),
-        enabled = enabled
+        enabled = enabled && !isLoading
     ) {
-        Text(text = text, style = MaterialTheme.typography.titleMedium, color = Black)
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+        } else {
+            Text(text = text, style = MaterialTheme.typography.titleMedium, color = Black)
+        }
     }
 }
 

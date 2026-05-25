@@ -92,6 +92,13 @@ fun BizoApp() {
             composable("favorites") {
                 FavoritesScreen(navController, bizoService)
             }
+            composable("publish") {
+                PublishScreen(navController, bizoService)
+            }
+            composable("edit_listing/{id}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")
+                PublishScreen(navController, bizoService, id)
+            }
             composable("item_detail/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id")!!
                 ItemDetailScreen(navController, bizoService, id, sessionManager)

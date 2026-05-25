@@ -1,28 +1,62 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import com.example.data.*
-import com.example.data.api.BizoService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavController
+import com.example.data.ConversationResource
+import com.example.data.DebugLogger
+import com.example.data.LogCategory
+import com.example.data.MessageResource
+import com.example.data.RealtimeEvent
+import com.example.data.RealtimeManager
+import com.example.data.SessionManager
+import com.example.data.api.BizoService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class ConversationThreadViewModel(
@@ -31,7 +65,7 @@ class ConversationThreadViewModel(
 ) : ViewModel() {
     private val _messages = MutableStateFlow<List<MessageResource>>(emptyList())
     val messages: StateFlow<List<MessageResource>> = _messages
-    
+
     private val _conversation = MutableStateFlow<ConversationResource?>(null)
     val conversation: StateFlow<ConversationResource?> = _conversation
 
@@ -46,82 +80,107 @@ class ConversationThreadViewModel(
 
     init {
         if (!convIdInitial.startsWith("new_")) {
-            loadMessages(convIdInitial)
             loadConversation(convIdInitial)
+            loadMessages(convIdInitial)
         } else {
             _isLoading.value = false
         }
     }
 
+    private fun sortMessages(messages: List<MessageResource>): List<MessageResource> {
+        return messages.sortedBy { it.created_at }
+    }
+
+    private fun addOrUpdateMessage(message: MessageResource) {
+        val updated = _messages.value
+            .filterNot { it.id == message.id }
+            .plus(message)
+
+        _messages.value = sortMessages(updated)
+    }
+
     private fun loadConversation(id: String) {
-        DebugLogger.info(LogCategory.CONVERSATION, "Chargement des détails de la conversation $id")
+        DebugLogger.info(LogCategory.CONVERSATION, "Chargement conversation", "ID: $id")
         viewModelScope.launch {
             try {
                 val response = bizoService.getConversation(id)
                 _conversation.value = response.data
-                DebugLogger.success(LogCategory.CONVERSATION, "Conversation chargée", "Title: ${response.data.listing_title}")
+                DebugLogger.success(LogCategory.CONVERSATION, "Conversation chargee", response.data.listing_title)
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.CONVERSATION, "Erreur chargement conversation", e.message)
-                e.printStackTrace()
             }
         }
     }
 
     private fun loadMessages(id: String) {
-        DebugLogger.info(LogCategory.MESSAGE, "Chargement des messages pour $id")
+        DebugLogger.info(LogCategory.MESSAGE, "Chargement messages", "Conv: $id")
         viewModelScope.launch {
             try {
                 val response = bizoService.getMessages(id)
-                // On garde l'ordre : index 0 = le plus récent pour reverseLayout = true
-                _messages.value = response.data
-                DebugLogger.success(LogCategory.MESSAGE, "Messages chargés", "Count: ${response.data.size}")
+                _messages.value = sortMessages(response.data)
+                DebugLogger.success(LogCategory.MESSAGE, "Messages charges", "Count: ${response.data.size}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.MESSAGE, "Erreur chargement messages", e.message)
-                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
+    fun onRealtimeMessage(message: MessageResource) {
+        if (message.conv_id != _currentConvId.value) return
+
+        addOrUpdateMessage(message)
+        DebugLogger.info(LogCategory.MESSAGE, "Message injecte en temps reel", "Msg: ${message.id}")
+    }
+
     fun sendMessage(text: String, type: String = "text") {
         val targetId = _currentConvId.value
+
         if (targetId.startsWith("new_")) {
-            val partAfterNew = targetId.removePrefix("new_")
-            val listingId = partAfterNew.split("?").first()
-            DebugLogger.info(LogCategory.CONVERSATION, "Création d'une nouvelle conversation pour l'annonce $listingId")
-            
+            val listingId = targetId.removePrefix("new_").split("?").first()
+            DebugLogger.info(LogCategory.CONVERSATION, "Creation conversation", "Listing: $listingId")
+
             viewModelScope.launch {
                 _isLoading.value = true
                 try {
-                    val body = mapOf("listing_id" to listingId, "message" to text)
-                    val response = bizoService.createConversation(body)
-                    
+                    val response = bizoService.createConversation(
+                        mapOf(
+                            "listing_id" to listingId,
+                            "message" to text
+                        )
+                    )
+
                     val realId = response.data.id
                     _currentConvId.value = realId
                     _conversation.value = response.data
-                    _messages.value = listOf(response.message)
-                    DebugLogger.success(LogCategory.CONVERSATION, "Conversation créée", "ID: $realId")
-                    
+                    _messages.value = sortMessages(listOf(response.message))
                     _onConversationCreated.value = realId
+
+                    DebugLogger.success(LogCategory.CONVERSATION, "Conversation creee", "ID: $realId")
                 } catch (e: Exception) {
-                    DebugLogger.error(LogCategory.CONVERSATION, "Erreur création conversation", e.message)
-                    e.printStackTrace()
+                    DebugLogger.error(LogCategory.CONVERSATION, "Erreur creation conversation", e.message)
+                } finally {
                     _isLoading.value = false
                 }
             }
         } else {
-            DebugLogger.info(LogCategory.MESSAGE, "Envoi d'un message dans $targetId", "Text: ${text.take(20)}...")
+            DebugLogger.info(LogCategory.MESSAGE, "Envoi message", "Conv: $targetId")
+
             viewModelScope.launch {
                 try {
-                    val body = mapOf("type" to type, "text" to text)
-                    val response = bizoService.sendMessage(targetId, body)
-                    _messages.value = listOf(response.data) + _messages.value
-                    DebugLogger.success(LogCategory.MESSAGE, "Message envoyé")
-                    loadMessages(targetId)
+                    val response = bizoService.sendMessage(
+                        targetId,
+                        mapOf(
+                            "type" to type,
+                            "text" to text
+                        )
+                    )
+
+                    addOrUpdateMessage(response.data)
+                    DebugLogger.success(LogCategory.MESSAGE, "Message envoye", "Msg: ${response.data.id}")
                 } catch (e: Exception) {
                     DebugLogger.error(LogCategory.MESSAGE, "Erreur envoi message", e.message)
-                    e.printStackTrace()
                 }
             }
         }
@@ -134,48 +193,73 @@ fun ConversationThreadScreen(
     navController: NavController,
     bizoService: BizoService,
     convId: String,
-    sessionManager: SessionManager
+    sessionManager: SessionManager,
+    realtimeManager: RealtimeManager
 ) {
-    val viewModel = remember { ConversationThreadViewModel(bizoService, convId) }
+    val viewModel = remember(convId) { ConversationThreadViewModel(bizoService, convId) }
     val messages by viewModel.messages.collectAsState()
     val conversation by viewModel.conversation.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val currentUserId = sessionManager.getUserId()
-    
-    // On extrait le type depuis la route (si on passait des arguments riches ce serait mieux)
-    // Ici on simplifie en initialisant messageText si c'est un troc
+    val currentConvId by viewModel.currentConvId.collectAsState()
     val onConvCreated by viewModel.onConversationCreated.collectAsState()
-    
+    val currentUserId = remember { sessionManager.getUserId() }
+    val listState = rememberLazyListState()
+
+    var messageText by remember { mutableStateOf("") }
+
+    LaunchedEffect(convId) {
+        if (convId.contains("type=troc")) {
+            messageText = "Je suis interesse par un troc pour cet article."
+        }
+    }
+
     LaunchedEffect(onConvCreated) {
         onConvCreated?.let { newId ->
-            // On remplace la route actuelle par la vraie pour éviter de revenir sur "new_..." au back
             navController.navigate("conversation/$newId") {
                 popUpTo("conversation/$convId") { inclusive = true }
             }
         }
     }
 
-    var messageText by remember { mutableStateOf("") }
-    
-    // Effet initial pour le troc
-    LaunchedEffect(convId) {
-        if (convId.contains("type=troc")) {
-            messageText = "Je suis intéressé par un troc pour cet article."
+    LaunchedEffect(currentConvId) {
+        if (!currentConvId.startsWith("new_")) {
+            realtimeManager.subscribeToThread(currentConvId)
+        }
+    }
+
+    DisposableEffect(currentConvId) {
+        onDispose {
+            realtimeManager.unsubscribeFromThread()
+        }
+    }
+
+    LaunchedEffect(realtimeManager, currentConvId) {
+        realtimeManager.events.collectLatest { event ->
+            if (event is RealtimeEvent.MessageCreated && event.message.conv_id == currentConvId) {
+                viewModel.onRealtimeMessage(event.message)
+            }
+        }
+    }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Column {
                         Text(
                             text = conversation?.other_user?.display_name ?: "Conversation",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
                         )
-                        if (conversation != null) {
+                        conversation?.let {
                             Text(
-                                text = conversation!!.listing_title,
+                                text = it.listing_title,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -192,10 +276,12 @@ fun ConversationThreadScreen(
         bottomBar = {
             Surface(
                 tonalElevation = 2.dp,
-                modifier = Modifier.imePadding() // Gestion du clavier
+                modifier = Modifier.imePadding()
             ) {
                 Row(
-                    modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
@@ -208,10 +294,12 @@ fun ConversationThreadScreen(
                             focusedContainerColor = Color.Transparent
                         )
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            if (messageText.isNotBlank()) {
-                                viewModel.sendMessage(messageText)
+                            val trimmed = messageText.trim()
+                            if (trimmed.isNotEmpty()) {
+                                viewModel.sendMessage(trimmed)
                                 messageText = ""
                             }
                         }
@@ -223,24 +311,42 @@ fun ConversationThreadScreen(
         }
     ) { padding ->
         if (isLoading) {
-            Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator()
             }
         } else {
             LazyColumn(
-                modifier = Modifier.padding(padding).fillMaxSize(),
-                reverseLayout = true, // Afficher les derniers messages en bas
-                contentPadding = PaddingValues(16.dp)
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(messages) { message ->
-                    MessageBubble(message, isMe = message.sender_id == currentUserId)
-                    Spacer(modifier = Modifier.height(8.dp))
+                items(messages, key = { it.id }) { message ->
+                    MessageBubble(
+                        message = message,
+                        isMe = message.sender_id == currentUserId
+                    )
                 }
-                
+
                 if (convId.startsWith("new_") && messages.isEmpty()) {
                     item {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(32.dp)) {
-                            Text("Dites bonjour pour démarrer la conversation !", color = Color.Gray)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Dites bonjour pour demarrer la conversation.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
@@ -251,17 +357,17 @@ fun ConversationThreadScreen(
 
 @Composable
 fun MessageBubble(message: MessageResource, isMe: Boolean) {
-    val bubbleColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-    val textColor = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+    val bubbleColor = if (isMe) Color(0xFF1F2937) else MaterialTheme.colorScheme.secondaryContainer
+    val textColor = if (isMe) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
     val alignment = if (isMe) Alignment.End else Alignment.Start
     val shape = if (isMe) {
-        RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+        RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp)
     } else {
-        RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
+        RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp)
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = alignment
     ) {
         Surface(
@@ -269,9 +375,11 @@ fun MessageBubble(message: MessageResource, isMe: Boolean) {
             shape = shape,
             shadowElevation = 1.dp
         ) {
-            Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Box(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
                 Text(
-                    text = message.text ?: "",
+                    text = message.text.orEmpty(),
                     color = textColor,
                     style = MaterialTheme.typography.bodyLarge
                 )

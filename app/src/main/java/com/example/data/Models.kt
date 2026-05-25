@@ -9,6 +9,7 @@ data class UserResource(
     val display_name: String,
     val username: String? = null,
     val photo_url: String? = null,
+    val last_seen_at: String? = null,
     val bio: String? = null,
     val country_code: String? = null,
     val rating: Float? = null,
@@ -64,6 +65,8 @@ data class MessageResource(
     val type: String,
     val text: String? = null,
     val image_url: String? = null,
+    val proposal: String? = null,
+    val is_read: Boolean? = null,
     val created_at: String
 )
 
@@ -111,4 +114,14 @@ data class ListingRequest(
 data class AuthResponse(
     val token: String,
     val user: UserResource
+)
+
+@Serializable
+data class RealtimeMessageCreatedPayload(
+    val message: MessageResource
+)
+
+@Serializable
+data class RealtimeConversationSummaryPayload(
+    val conversation: ConversationResource
 )

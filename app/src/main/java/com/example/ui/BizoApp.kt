@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -16,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.data.RealtimeManager
 import com.example.data.SessionManager
 import com.example.data.api.BizoService
 import com.example.ui.screens.*
@@ -24,8 +26,9 @@ import com.example.ui.screens.*
 fun BizoApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val sessionManager = SessionManager(context)
-    val bizoService = BizoService.create(sessionManager)
+    val sessionManager = remember { SessionManager(context) }
+    val bizoService = remember { BizoService.create(sessionManager) }
+    val realtimeManager = remember { RealtimeManager(sessionManager) }
     
     val items = listOf(
         Screen.Home,
@@ -78,7 +81,7 @@ fun BizoApp() {
                 HomeScreen(navController, bizoService) 
             }
             composable(Screen.Messages.route) { 
-                MessagesScreen(navController, bizoService) 
+                MessagesScreen(navController, bizoService, sessionManager, realtimeManager) 
             }
             composable(Screen.Profile.route) { 
                 ProfileScreen(navController, bizoService, sessionManager) 
@@ -105,7 +108,7 @@ fun BizoApp() {
             }
             composable("conversation/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id")!!
-                ConversationThreadScreen(navController, bizoService, id, sessionManager)
+                ConversationThreadScreen(navController, bizoService, id, sessionManager, realtimeManager)
             }
         }
     }

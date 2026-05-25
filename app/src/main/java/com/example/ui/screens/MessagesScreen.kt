@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
@@ -38,7 +39,7 @@ class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
         viewModelScope.launch {
             try {
                 val response = bizoService.getConversations()
-                _conversations.value = response.data
+                _conversations.value = sortConversations(response.data)
                 DebugLogger.success(LogCategory.CONVERSATION, "Conversations chargées", "Count: ${response.data.size}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.CONVERSATION, "Erreur chargement conversations", e.message)
@@ -46,13 +47,51 @@ class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
             }
         }
     }
+
+    fun upsertConversation(conversation: ConversationResource) {
+        val updated = _conversations.value
+            .filterNot { it.id == conversation.id }
+            .plus(conversation)
+
+        _conversations.value = sortConversations(updated)
+    }
+
+    private fun sortConversations(conversations: List<ConversationResource>): List<ConversationResource> {
+        return conversations.sortedByDescending { it.last_message_at ?: it.created_at }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessagesScreen(navController: NavController, bizoService: BizoService) {
+fun MessagesScreen(
+    navController: NavController,
+    bizoService: BizoService,
+    sessionManager: SessionManager,
+    realtimeManager: RealtimeManager
+) {
     val viewModel = remember { MessagesViewModel(bizoService) }
     val conversations by viewModel.conversations.collectAsState()
+    val userId = remember { sessionManager.getUserId() }
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            realtimeManager.subscribeToInbox(userId)
+        }
+    }
+
+    DisposableEffect(userId) {
+        onDispose {
+            realtimeManager.unsubscribeFromInbox()
+        }
+    }
+
+    LaunchedEffect(realtimeManager) {
+        realtimeManager.events.collectLatest { event ->
+            if (event is RealtimeEvent.ConversationSummaryUpdated) {
+                viewModel.upsertConversation(event.conversation)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {

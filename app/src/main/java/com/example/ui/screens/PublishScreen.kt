@@ -29,10 +29,10 @@ class PublishViewModel(
     var title by mutableStateOf("")
     var description by mutableStateOf("")
     var price by mutableStateOf("")
-    var category by mutableStateOf("AUTRES")
-    var type by mutableStateOf("VENTE")
-    var condition by mutableStateOf("NEUF")
-    var deliveryMode by mutableStateOf("MAIN_PROPRE")
+    var category by mutableStateOf("autres")
+    var type by mutableStateOf("vente")
+    var condition by mutableStateOf("neuf")
+    var deliveryMode by mutableStateOf("main_propre")
     var city by mutableStateOf("")
     var neighborhood by mutableStateOf("")
     var photos by mutableStateOf<List<String>>(emptyList())
@@ -58,10 +58,10 @@ class PublishViewModel(
                 title = item.title
                 description = item.description
                 price = item.price?.toString() ?: ""
-                category = item.category
-                type = item.type
-                condition = item.condition
-                deliveryMode = item.delivery_mode
+                category = item.category.lowercase()
+                type = item.type.lowercase()
+                condition = item.condition.lowercase()
+                deliveryMode = item.delivery_mode.lowercase()
                 city = item.city
                 neighborhood = item.neighborhood ?: ""
                 photos = item.photos
@@ -202,26 +202,35 @@ fun PublishScreen(
                 PublishDropdown(
                     label = "Catégorie", 
                     selected = viewModel.category, 
-                    options = listOf("VEHICULES", "IMMOBILIER", "ELECTRONIQUE", "MAISON", "MODES", "LOISIRS", "AUTRES")
+                    options = listOf("electronique", "vetements", "vehicules", "maison", "services", "autres")
                 ) { viewModel.category = it }
                 
                 PublishDropdown(
                     label = "Type", 
                     selected = viewModel.type, 
-                    options = listOf("VENTE", "TROC", "DON")
+                    options = listOf("vente", "troc", "don")
                 ) { viewModel.type = it }
                 
                 PublishDropdown(
                     label = "État", 
                     selected = viewModel.condition, 
-                    options = listOf("NEUF", "TRES_BON_ETAT", "BON_ETAT", "SATISFAISANT")
+                    options = listOf("neuf", "tres_bon_etat", "bon_etat", "satisfaisant")
                 ) { viewModel.condition = it }
                 
                 PublishDropdown(
                     label = "Mode de livraison", 
                     selected = viewModel.deliveryMode, 
-                    options = listOf("MAIN_PROPRE", "LIVRAISON")
+                    options = listOf("main_propre", "livraison")
                 ) { viewModel.deliveryMode = it }
+
+                if (listingId != null) {
+                    Text(
+                        text = "Note: L'édition des photos n'est pas encore disponible. Les photos existantes seront conservées.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -249,7 +258,7 @@ fun PublishDropdown(label: String, selected: String, options: List<String>, onSe
         onExpandedChange = { expanded = !expanded }
     ) {
         OutlinedTextField(
-            value = selected.replace("_", " "),
+            value = selected.replace("_", " ").uppercase(),
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
@@ -262,7 +271,7 @@ fun PublishDropdown(label: String, selected: String, options: List<String>, onSe
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.replace("_", " ")) },
+                    text = { Text(option.replace("_", " ").uppercase()) },
                     onClick = {
                         onSelected(option)
                         expanded = false

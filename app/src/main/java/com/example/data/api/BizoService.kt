@@ -55,13 +55,13 @@ interface BizoService {
     ): CreateConversationResponse
 
     @POST("listings")
-    suspend fun createListing(@Body body: Map<String, String>): DataResponse<ListingResource>
+    suspend fun createListing(@Body body: ListingRequest): DataResponse<ListingResource>
 
     @DELETE("listings/{id}")
     suspend fun deleteListing(@Path("id") id: String): Map<String, String>
 
     @PUT("listings/{id}")
-    suspend fun updateListing(@Path("id") id: String, @Body body: Map<String, String>): DataResponse<ListingResource>
+    suspend fun updateListing(@Path("id") id: String, @Body body: ListingRequest): DataResponse<ListingResource>
 
     @POST("debug-logs")
     suspend fun sendDebugLogs(@Body body: DebugLogsRequest): SendDebugLogsResponse

@@ -11,7 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.data.*
 import com.example.data.api.BizoService
@@ -27,12 +29,13 @@ class PublishViewModel(
     var title by mutableStateOf("")
     var description by mutableStateOf("")
     var price by mutableStateOf("")
-    var category by mutableStateOf("OTHER")
-    var type by mutableStateOf("SELL")
-    var condition by mutableStateOf("NEW")
-    var deliveryMode by mutableStateOf("MEETING")
+    var category by mutableStateOf("AUTRES")
+    var type by mutableStateOf("VENTE")
+    var condition by mutableStateOf("NEUF")
+    var deliveryMode by mutableStateOf("MAIN_PROPRE")
     var city by mutableStateOf("")
     var neighborhood by mutableStateOf("")
+    var photos by mutableStateOf<List<String>>(emptyList())
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -61,6 +64,7 @@ class PublishViewModel(
                 deliveryMode = item.delivery_mode
                 city = item.city
                 neighborhood = item.neighborhood ?: ""
+                photos = item.photos
                 DebugLogger.success(LogCategory.LISTING, "Annonce chargée pour édition", "ID: $id")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.LISTING, "Erreur chargement annonce pour édition", e.message)
@@ -71,42 +75,32 @@ class PublishViewModel(
     }
 
     fun submit(onSuccess: () -> Unit) {
-        val parsedPrice = price.toIntOrNull()
-        val body = mutableMapOf<String, Any?>(
-            "title" to title,
-            "description" to description,
-            "category" to category,
-            "type" to type,
-            "condition" to condition,
-            "delivery_mode" to deliveryMode,
-            "city" to city,
-            "neighborhood" to neighborhood,
-            "country" to "Benin"
+        val parsedPrice = price.toLongOrNull()
+        
+        val request = ListingRequest(
+            title = title,
+            description = description,
+            category = category,
+            type = type,
+            condition = condition,
+            delivery_mode = deliveryMode,
+            price = parsedPrice,
+            photos = photos,
+            city = city,
+            neighborhood = neighborhood,
+            country = "BJ"
         )
-        if (parsedPrice != null) body["price"] = parsedPrice
 
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Use a generic Map<String, Any?> for the body
-                @Suppress("UNCHECKED_CAST")
-                val safeBody = body as Map<String, String> 
-                // Wait, Retrofit with Kotlinx.serialization might struggle with Map<String, Any?>
-                // unless it's configured specifically. 
-                // Let's stick to Map<String, String> if the API is known to accept it, 
-                // OR better, create a proper data class in com.example.data if I had more time.
-                // Given the current BizoService.kt definitions specify Map<String, String>, 
-                // I will revert to Map<String, String> but with the stringified price.
-                
-                val finalBody = body.mapValues { it.value.toString() }
-
                 if (listingId != null) {
                     DebugLogger.info(LogCategory.LISTING, "Mise à jour de l'annonce $listingId")
-                    bizoService.updateListing(listingId, finalBody)
+                    bizoService.updateListing(listingId, request)
                     DebugLogger.success(LogCategory.LISTING, "Annonce mise à jour avec succès")
                 } else {
                     DebugLogger.info(LogCategory.LISTING, "Création d'une nouvelle annonce")
-                    bizoService.createListing(finalBody)
+                    bizoService.createListing(request)
                     DebugLogger.success(LogCategory.LISTING, "Annonce créée avec succès")
                 }
                 _isSuccess.value = true
@@ -120,6 +114,16 @@ class PublishViewModel(
     }
 }
 
+class PublishViewModelFactory(
+    private val bizoService: BizoService,
+    private val listingId: String? = null
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return PublishViewModel(bizoService, listingId) as T
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PublishScreen(
@@ -127,7 +131,7 @@ fun PublishScreen(
     bizoService: BizoService,
     listingId: String? = null
 ) {
-    val viewModel = remember { PublishViewModel(bizoService, listingId) }
+    val viewModel: PublishViewModel = viewModel(factory = PublishViewModelFactory(bizoService, listingId))
     val isLoading by viewModel.isLoading.collectAsState()
     val scrollState = rememberScrollState()
 
@@ -193,16 +197,31 @@ fun PublishScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Selectors for Category, Type, Condition, Delivery Mode
-                // For brevity, using simple text fields or placeholders here. 
-                // In a real app, these would be Dropdowns.
-                
                 Text("Détails supplémentaires", style = MaterialTheme.typography.titleMedium)
                 
-                PublishDropdown(label = "Catégorie", selected = viewModel.category, options = listOf("ELECTRONICS", "FASHION", "HOME", "VEHICLES", "OTHER")) { viewModel.category = it }
-                PublishDropdown(label = "Type", selected = viewModel.type, options = listOf("SELL", "TROK", "GIFT")) { viewModel.type = it }
-                PublishDropdown(label = "État", selected = viewModel.condition, options = listOf("NEW", "LIKE_NEW", "USED_GOOD", "USED_FAIR")) { viewModel.condition = it }
-                PublishDropdown(label = "Mode de livraison", selected = viewModel.deliveryMode, options = listOf("MEETING", "SHIPPING")) { viewModel.deliveryMode = it }
+                PublishDropdown(
+                    label = "Catégorie", 
+                    selected = viewModel.category, 
+                    options = listOf("VEHICULES", "IMMOBILIER", "ELECTRONIQUE", "MAISON", "MODES", "LOISIRS", "AUTRES")
+                ) { viewModel.category = it }
+                
+                PublishDropdown(
+                    label = "Type", 
+                    selected = viewModel.type, 
+                    options = listOf("VENTE", "TROC", "DON")
+                ) { viewModel.type = it }
+                
+                PublishDropdown(
+                    label = "État", 
+                    selected = viewModel.condition, 
+                    options = listOf("NEUF", "TRES_BON_ETAT", "BON_ETAT", "SATISFAISANT")
+                ) { viewModel.condition = it }
+                
+                PublishDropdown(
+                    label = "Mode de livraison", 
+                    selected = viewModel.deliveryMode, 
+                    options = listOf("MAIN_PROPRE", "LIVRAISON")
+                ) { viewModel.deliveryMode = it }
 
                 Spacer(modifier = Modifier.height(16.dp))
 

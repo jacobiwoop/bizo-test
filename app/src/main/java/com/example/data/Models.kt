@@ -93,6 +93,21 @@ data class DataResponse<T>(
 )
 
 @Serializable
+data class ListingRequest(
+    val title: String,
+    val description: String,
+    val category: String,
+    val type: String,
+    val condition: String,
+    val delivery_mode: String,
+    val price: Long? = null,
+    val photos: List<String> = emptyList(),
+    val city: String,
+    val neighborhood: String? = null,
+    val country: String = "BJ"
+)
+
+@Serializable
 data class AuthResponse(
     val token: String,
     val user: UserResource

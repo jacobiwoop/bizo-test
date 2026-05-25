@@ -5,7 +5,6 @@ import com.pusher.client.PusherOptions
 import com.pusher.client.Authorizer
 import com.pusher.client.channel.PrivateChannel
 import com.pusher.client.channel.PrivateChannelEventListener
-import com.pusher.client.channel.SubscriptionEventListener
 import com.pusher.client.connection.ConnectionEventListener
 import com.pusher.client.connection.ConnectionState
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -133,8 +132,9 @@ class RealtimeManager(
         }
 
         val channel = pusher.subscribePrivate(targetChannel, listener)
-        channel.bind("conversation.message.created", object : SubscriptionEventListener {
-            override fun onEvent(event: com.pusher.client.channel.PusherEvent) {
+        channel.bind("conversation.message.created", object : PrivateChannelEventListener {
+            override fun onEvent(event: com.pusher.client.channel.PusherEvent?) {
+                if (event == null) return
                 try {
                     val payload = json.decodeFromString<RealtimeMessageCreatedPayload>(event.data)
                     _events.tryEmit(RealtimeEvent.MessageCreated(payload.message))
@@ -147,6 +147,10 @@ class RealtimeManager(
                     DebugLogger.error(LogCategory.ERROR, "Erreur parsing message temps reel", e.message)
                 }
             }
+
+            override fun onAuthenticationFailure(message: String?, e: Exception?) = Unit
+
+            override fun onSubscriptionSucceeded(channelName: String?) = Unit
         })
 
         threadChannelName = targetChannel
@@ -191,8 +195,9 @@ class RealtimeManager(
         }
 
         val channel = pusher.subscribePrivate(targetChannel, listener)
-        channel.bind("conversation.summary.updated", object : SubscriptionEventListener {
-            override fun onEvent(event: com.pusher.client.channel.PusherEvent) {
+        channel.bind("conversation.summary.updated", object : PrivateChannelEventListener {
+            override fun onEvent(event: com.pusher.client.channel.PusherEvent?) {
+                if (event == null) return
                 try {
                     val payload = json.decodeFromString<RealtimeConversationSummaryPayload>(event.data)
                     _events.tryEmit(RealtimeEvent.ConversationSummaryUpdated(payload.conversation))
@@ -205,6 +210,10 @@ class RealtimeManager(
                     DebugLogger.error(LogCategory.ERROR, "Erreur parsing resume conversation", e.message)
                 }
             }
+
+            override fun onAuthenticationFailure(message: String?, e: Exception?) = Unit
+
+            override fun onSubscriptionSucceeded(channelName: String?) = Unit
         })
 
         inboxChannelName = targetChannel

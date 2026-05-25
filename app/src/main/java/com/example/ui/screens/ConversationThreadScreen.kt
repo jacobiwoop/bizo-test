@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -42,14 +41,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.data.ConversationResource
 import com.example.data.DebugLogger
@@ -60,9 +59,12 @@ import com.example.data.RealtimeManager
 import com.example.data.SessionManager
 import com.example.data.api.BizoService
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class ConversationThreadViewModel(
     private val bizoService: BizoService,
@@ -80,8 +82,8 @@ class ConversationThreadViewModel(
     private val _currentConvId = MutableStateFlow(convIdInitial)
     val currentConvId: StateFlow<String> = _currentConvId
 
-    private val _onConversationCreated = MutableStateFlow<String?>(null)
-    val onConversationCreated: StateFlow<String?> = _onConversationCreated
+    private val _onConversationCreated = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val onConversationCreated: SharedFlow<String> = _onConversationCreated
 
     init {
         if (!convIdInitial.startsWith("new_")) {
@@ -160,7 +162,7 @@ class ConversationThreadViewModel(
                     _currentConvId.value = realId
                     _conversation.value = response.data
                     _messages.value = sortMessages(listOf(response.message))
-                    _onConversationCreated.value = realId
+                    _onConversationCreated.tryEmit(realId)
 
                     DebugLogger.success(LogCategory.CONVERSATION, "Conversation creee", "ID: $realId")
                 } catch (e: Exception) {
@@ -192,6 +194,16 @@ class ConversationThreadViewModel(
     }
 }
 
+class ConversationThreadViewModelFactory(
+    private val bizoService: BizoService,
+    private val convId: String
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return ConversationThreadViewModel(bizoService, convId) as T
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationThreadScreen(
@@ -201,17 +213,17 @@ fun ConversationThreadScreen(
     sessionManager: SessionManager,
     realtimeManager: RealtimeManager
 ) {
-    val viewModel = remember(convId) { ConversationThreadViewModel(bizoService, convId) }
+    val viewModel: ConversationThreadViewModel = viewModel(
+        key = convId,
+        factory = ConversationThreadViewModelFactory(bizoService, convId)
+    )
     val messages by viewModel.messages.collectAsState()
     val conversation by viewModel.conversation.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val currentConvId by viewModel.currentConvId.collectAsState()
-    val onConvCreated by viewModel.onConversationCreated.collectAsState()
     val currentUserId = remember { sessionManager.getUserId() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
-    val imeBottom = WindowInsets.ime.getBottom(density)
 
     var messageText by remember { mutableStateOf("") }
 
@@ -221,8 +233,8 @@ fun ConversationThreadScreen(
         }
     }
 
-    LaunchedEffect(onConvCreated) {
-        onConvCreated?.let { newId ->
+    LaunchedEffect(viewModel) {
+        viewModel.onConversationCreated.collectLatest { newId ->
             navController.navigate("conversation/$newId") {
                 popUpTo("conversation/$convId") { inclusive = true }
             }
@@ -251,12 +263,6 @@ fun ConversationThreadScreen(
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.scrollToItem(messages.lastIndex)
-        }
-    }
-
-    LaunchedEffect(imeBottom) {
-        if (imeBottom > 0 && messages.isNotEmpty()) {
             listState.scrollToItem(messages.lastIndex)
         }
     }
@@ -352,6 +358,7 @@ fun ConversationThreadScreen(
                                 .onFocusChanged { focusState ->
                                     if (focusState.isFocused && messages.isNotEmpty()) {
                                         scope.launch {
+                                            delay(250)
                                             listState.scrollToItem(messages.lastIndex)
                                         }
                                     }

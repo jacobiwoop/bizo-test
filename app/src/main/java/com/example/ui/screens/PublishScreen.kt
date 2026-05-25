@@ -43,6 +43,9 @@ class PublishViewModel(
     private val _isSuccess = MutableStateFlow(false)
     val isSuccess: StateFlow<Boolean> = _isSuccess
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     init {
         if (listingId != null) {
             loadListingForEdit(listingId)
@@ -75,7 +78,16 @@ class PublishViewModel(
     }
 
     fun submit(onSuccess: () -> Unit) {
+        if (title.isBlank() || description.isBlank() || city.isBlank()) {
+            _error.value = "Titre, description et ville sont obligatoires."
+            return
+        }
+
         val parsedPrice = price.toLongOrNull()
+        if (price.isNotBlank() && parsedPrice == null) {
+            _error.value = "Le prix doit etre numerique."
+            return
+        }
         
         val request = ListingRequest(
             title = title,
@@ -93,6 +105,7 @@ class PublishViewModel(
 
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             try {
                 if (listingId != null) {
                     DebugLogger.info(LogCategory.LISTING, "Mise à jour de l'annonce $listingId")
@@ -107,6 +120,7 @@ class PublishViewModel(
                 onSuccess()
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.LISTING, "Erreur lors de la soumission de l'annonce", e.message)
+                _error.value = "Impossible d'enregistrer l'annonce."
             } finally {
                 _isLoading.value = false
             }
@@ -133,6 +147,7 @@ fun PublishScreen(
 ) {
     val viewModel: PublishViewModel = viewModel(factory = PublishViewModelFactory(bizoService, listingId))
     val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -156,6 +171,7 @@ fun PublishScreen(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
+                    .imePadding()
                     .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -229,6 +245,14 @@ fun PublishScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                if (error != null) {
+                    Text(
+                        text = error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
 

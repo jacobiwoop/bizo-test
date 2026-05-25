@@ -97,6 +97,11 @@ interface BizoService {
                             "Erreur HTTP ${response.code}", 
                             "URL: ${chain.request().url}, Message: ${response.message}"
                         )
+
+                        if (response.code == 401) {
+                            DebugLogger.warn(LogCategory.AUTH, "Session expirée", "Nettoyage local après 401")
+                            sessionManager.clearSession()
+                        }
                     }
                     
                     response

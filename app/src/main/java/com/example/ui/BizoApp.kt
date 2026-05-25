@@ -8,6 +8,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,13 +37,32 @@ fun BizoApp() {
         Screen.Messages,
         Screen.Profile
     )
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val authToken by sessionManager.authToken.collectAsState()
+    val userId by sessionManager.userId.collectAsState()
+    val showBottomBar = items.any { it.route == currentDestination?.route }
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            realtimeManager.subscribeToInbox(userId!!)
+        } else {
+            realtimeManager.unsubscribeFromInbox()
+        }
+    }
+
+    LaunchedEffect(authToken, currentDestination?.route) {
+        val route = currentDestination?.route
+        if (authToken == null && route != null && route !in listOf("splash", "auth")) {
+            navController.navigate("auth") {
+                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentDestination = navBackStackEntry?.destination
-            val showBottomBar = items.any { it.route == currentDestination?.route }
-            
             if (showBottomBar) {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                     items.forEach { screen ->
@@ -81,7 +102,7 @@ fun BizoApp() {
                 HomeScreen(navController, bizoService) 
             }
             composable(Screen.Messages.route) { 
-                MessagesScreen(navController, bizoService, sessionManager, realtimeManager) 
+                MessagesScreen(navController, bizoService, realtimeManager) 
             }
             composable(Screen.Profile.route) { 
                 ProfileScreen(navController, bizoService, sessionManager) 

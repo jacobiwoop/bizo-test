@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,26 +17,30 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.SessionManager
 import com.example.data.api.BizoService
 import com.example.ui.components.PrimaryButton
 
 @Composable
 fun AuthScreen(navController: NavController, bizoService: BizoService, sessionManager: SessionManager) {
-    val viewModel = remember { AuthViewModel(bizoService, sessionManager) }
+    val viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(bizoService, sessionManager))
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val scrollState = rememberScrollState()
 
     var isLogin by remember { mutableStateOf(true) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
-            .imePadding(),
+            .imePadding()
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -68,8 +74,6 @@ fun AuthScreen(navController: NavController, bizoService: BizoService, sessionMa
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        var passwordVisible by remember { mutableStateOf(false) }
-
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -100,6 +104,12 @@ fun AuthScreen(navController: NavController, bizoService: BizoService, sessionMa
         PrimaryButton(
             text = if (isLogin) "Se connecter" else "S'inscrire",
             onClick = {
+                if (!isLogin && name.isBlank()) {
+                    return@PrimaryButton
+                }
+                if (email.isBlank() || password.isBlank()) {
+                    return@PrimaryButton
+                }
                 if (isLogin) {
                     viewModel.login(email, password) {
                         navController.navigate("home") {
@@ -114,7 +124,7 @@ fun AuthScreen(navController: NavController, bizoService: BizoService, sessionMa
                     }
                 }
             },
-            enabled = !isLoading
+            enabled = !isLoading && email.isNotBlank() && password.isNotBlank() && (isLogin || name.isNotBlank())
         )
 
         Spacer(modifier = Modifier.height(16.dp))

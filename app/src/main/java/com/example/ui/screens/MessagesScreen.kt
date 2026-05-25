@@ -20,7 +20,9 @@ import coil.compose.AsyncImage
 import com.example.data.*
 import com.example.data.api.BizoService
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -61,29 +63,24 @@ class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
+class MessagesViewModelFactory(
+    private val bizoService: BizoService
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return MessagesViewModel(bizoService) as T
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     navController: NavController,
     bizoService: BizoService,
-    sessionManager: SessionManager,
     realtimeManager: RealtimeManager
 ) {
-    val viewModel = remember { MessagesViewModel(bizoService) }
+    val viewModel: MessagesViewModel = viewModel(factory = MessagesViewModelFactory(bizoService))
     val conversations by viewModel.conversations.collectAsState()
-    val userId = remember { sessionManager.getUserId() }
-
-    LaunchedEffect(userId) {
-        if (userId != null) {
-            realtimeManager.subscribeToInbox(userId)
-        }
-    }
-
-    DisposableEffect(userId) {
-        onDispose {
-            realtimeManager.unsubscribeFromInbox()
-        }
-    }
 
     LaunchedEffect(realtimeManager) {
         realtimeManager.events.collectLatest { event ->
@@ -132,7 +129,12 @@ fun ConversationItem(conversation: ConversationResource, onClick: () -> Unit) {
         ) {
             if (photoUrl != null) {
                 val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
-                AsyncImage(fullUrl, null, contentScale = ContentScale.Crop)
+                AsyncImage(
+                    model = fullUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             } else {
                 Text(otherUser.display_name.take(1))
             }

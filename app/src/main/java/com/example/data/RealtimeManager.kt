@@ -58,7 +58,6 @@ class RealtimeManager(
     private val options = PusherOptions()
         .setUseTLS(true)
         .setHost("bizo.aiko.qzz.io")
-        .setWsPort(80)
         .setWssPort(443)
         .setAuthorizer(authorizer)
 

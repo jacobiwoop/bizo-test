@@ -32,7 +32,9 @@ import com.example.data.api.BizoService
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -123,6 +125,16 @@ class ItemDetailViewModel(
     }
 }
 
+class ItemDetailViewModelFactory(
+    private val bizoService: BizoService,
+    private val id: String
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return ItemDetailViewModel(bizoService, id) as T
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemDetailScreen(
@@ -131,7 +143,7 @@ fun ItemDetailScreen(
     id: String,
     sessionManager: SessionManager
 ) {
-    val viewModel = remember { ItemDetailViewModel(bizoService, id) }
+    val viewModel: ItemDetailViewModel = viewModel(factory = ItemDetailViewModelFactory(bizoService, id))
     val listing by viewModel.listing.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val currentUserId = sessionManager.getUserId()

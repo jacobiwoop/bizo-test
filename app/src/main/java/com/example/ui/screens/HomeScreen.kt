@@ -8,16 +8,21 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
 import com.example.data.api.BizoService
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -45,11 +50,31 @@ class HomeViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
+class HomeViewModelFactory(
+    private val bizoService: BizoService
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return HomeViewModel(bizoService) as T
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController, bizoService: BizoService) {
-    val viewModel: HomeViewModel = remember { HomeViewModel(bizoService) }
+    val viewModel: HomeViewModel = viewModel(factory = HomeViewModelFactory(bizoService))
     val listings by viewModel.listings.collectAsState()
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadListings()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -67,20 +92,31 @@ fun HomeScreen(navController: NavController, bizoService: BizoService) {
             }
         }
     ) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(
-                start = 8.dp, 
-                end = 8.dp, 
-                top = 8.dp, 
-                bottom = padding.calculateBottomPadding() + 8.dp
-            ),
-            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())
-        ) {
-            items(listings) { listing ->
-                ListingCard(listing) {
-                    DebugLogger.info(LogCategory.NAV, "Ouverture détail annonce", "ID: ${listing.id}, Title: ${listing.title}")
-                    navController.navigate("item_detail/${listing.id}")
+        if (listings.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Aucune annonce disponible pour le moment.")
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(
+                    start = 8.dp,
+                    end = 8.dp,
+                    top = 8.dp,
+                    bottom = padding.calculateBottomPadding() + 8.dp
+                ),
+                modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())
+            ) {
+                items(listings) { listing ->
+                    ListingCard(listing) {
+                        DebugLogger.info(LogCategory.NAV, "Ouverture détail annonce", "ID: ${listing.id}, Title: ${listing.title}")
+                        navController.navigate("item_detail/${listing.id}")
+                    }
                 }
             }
         }

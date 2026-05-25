@@ -19,8 +19,12 @@ RUN mkdir -p /opt/android-sdk/cmdline-tools && \
 RUN yes | sdkmanager --licenses >/dev/null && \
     sdkmanager \
       "platform-tools" \
+      "platforms;android-34" \
       "platforms;android-35" \
+      "build-tools;34.0.0" \
       "build-tools;35.0.0"
+
+RUN chmod -R a+rwx /opt/android-sdk
 
 WORKDIR /workspace
 

@@ -35,8 +35,8 @@ data class ListingResource(
     val title: String,
     val description: String,
     val type: String,
-    val price: String? = null,
-    val cash_complement: String? = null,
+    val price: Long? = null,
+    val cash_complement: Long? = null,
     val exchange_for: String? = null,
     val category: String,
     val condition: String,
@@ -68,10 +68,37 @@ data class ApiResponse<T>(
 )
 
 @Serializable
+data class MetaLinkResource(
+    val url: String? = null,
+    val label: String? = null,
+    val active: Boolean? = null
+)
+
+@Serializable
+data class MetaResource(
+    val current_page: Int? = null,
+    val from: Int? = null,
+    val last_page: Int? = null,
+    val links: List<MetaLinkResource>? = null,
+    val path: String? = null,
+    val per_page: Int? = null,
+    val to: Int? = null,
+    val total: Int? = null
+)
+
+@Serializable
+data class LinksResource(
+    val first: String? = null,
+    val last: String? = null,
+    val prev: String? = null,
+    val next: String? = null
+)
+
+@Serializable
 data class PaginatedResponse<T>(
     val data: List<T>,
-    val links: Map<String, String?>? = null,
-    val meta: Map<String, Int?>? = null
+    val links: LinksResource? = null,
+    val meta: MetaResource? = null
 )
 
 @Serializable
@@ -123,7 +150,7 @@ data class FavoriteResource(
     val listing_id: String,
     val listing_title: String,
     val listing_photo: String? = null,
-    val listing_price: String? = null,
+    val listing_price: Long? = null,
     val listing_type: String,
     val created_at: String,
     val listing: ListingResource? = null

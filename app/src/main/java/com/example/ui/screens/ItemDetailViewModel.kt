@@ -42,7 +42,7 @@ class ItemDetailViewModel(private val bizoService: BizoService) : ViewModel() {
                 val listing = response.data
                 
                 val title = listing.title
-                val price = if (!listing.price.isNullOrEmpty()) "${listing.price} FCFA" else "Gratuit / Échange"
+                val price = listing.price?.let { "$it FCFA" } ?: "Gratuit / Échange"
                 val city = listing.city
                 val neighborhood = listing.neighborhood ?: ""
                 val location = if (neighborhood.isNotEmpty()) "$city, $neighborhood" else city
@@ -57,7 +57,9 @@ class ItemDetailViewModel(private val bizoService: BizoService) : ViewModel() {
                     title = title,
                     price = price,
                     location = location,
-                    imageUrl = listing.photos.firstOrNull()?.let { "https://bizo.aiko.qzz.io$it" } ?: "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400",
+                    imageUrl = listing.photos.firstOrNull()?.let { path ->
+                        if (path.startsWith("http")) path else "https://bizo.aiko.qzz.io$path"
+                    } ?: "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400",
                     type = type,
                     sellerName = listing.owner?.display_name ?: "Utilisateur",
                     timeAgo = "Récemment"

@@ -4,9 +4,10 @@ import com.pusher.client.Pusher
 import com.pusher.client.PusherOptions
 import com.pusher.client.channel.PrivateChannel
 import com.pusher.client.channel.PrivateChannelEventListener
+import com.pusher.client.channel.SubscriptionEventListener
 import com.pusher.client.connection.ConnectionEventListener
 import com.pusher.client.connection.ConnectionState
-import com.pusher.client.util.Authorizer
+import com.pusher.client.util.ChannelAuthorizer
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.json.Json
@@ -30,7 +31,7 @@ class RealtimeManager(
         .connectTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private val authorizer = Authorizer { channelName, socketId ->
+    private val authorizer = ChannelAuthorizer { channelName, socketId ->
         val token = sessionManager.getAuthToken().orEmpty()
         require(token.isNotBlank()) { "Token utilisateur manquant pour l'auth WebSocket." }
 
@@ -60,7 +61,7 @@ class RealtimeManager(
         .setHost("bizo.aiko.qzz.io")
         .setWsPort(80)
         .setWssPort(443)
-        .setAuthorizer(authorizer)
+        .setChannelAuthorizer(authorizer)
 
     private val pusher = Pusher("eert8x7wnwzya7scgtan", options)
     private var didConnect = false
@@ -132,19 +133,21 @@ class RealtimeManager(
         }
 
         val channel = pusher.subscribePrivate(targetChannel, listener)
-        channel.bind("conversation.message.created") { event ->
-            try {
-                val payload = json.decodeFromString<RealtimeMessageCreatedPayload>(event.data)
-                _events.tryEmit(RealtimeEvent.MessageCreated(payload.message))
-                DebugLogger.success(
-                    LogCategory.MESSAGE,
-                    "Message temps reel recu",
-                    "Conv: ${payload.message.conv_id}, Msg: ${payload.message.id}"
-                )
-            } catch (e: Exception) {
-                DebugLogger.error(LogCategory.ERROR, "Erreur parsing message temps reel", e.message)
+        channel.bind("conversation.message.created", object : SubscriptionEventListener {
+            override fun onEvent(event: com.pusher.client.channel.PusherEvent) {
+                try {
+                    val payload = json.decodeFromString<RealtimeMessageCreatedPayload>(event.data)
+                    _events.tryEmit(RealtimeEvent.MessageCreated(payload.message))
+                    DebugLogger.success(
+                        LogCategory.MESSAGE,
+                        "Message temps reel recu",
+                        "Conv: ${payload.message.conv_id}, Msg: ${payload.message.id}"
+                    )
+                } catch (e: Exception) {
+                    DebugLogger.error(LogCategory.ERROR, "Erreur parsing message temps reel", e.message)
+                }
             }
-        }
+        })
 
         threadChannelName = targetChannel
         threadChannel = channel
@@ -188,19 +191,21 @@ class RealtimeManager(
         }
 
         val channel = pusher.subscribePrivate(targetChannel, listener)
-        channel.bind("conversation.summary.updated") { event ->
-            try {
-                val payload = json.decodeFromString<RealtimeConversationSummaryPayload>(event.data)
-                _events.tryEmit(RealtimeEvent.ConversationSummaryUpdated(payload.conversation))
-                DebugLogger.success(
-                    LogCategory.CONVERSATION,
-                    "Resume conversation recu",
-                    "Conv: ${payload.conversation.id}"
-                )
-            } catch (e: Exception) {
-                DebugLogger.error(LogCategory.ERROR, "Erreur parsing resume conversation", e.message)
+        channel.bind("conversation.summary.updated", object : SubscriptionEventListener {
+            override fun onEvent(event: com.pusher.client.channel.PusherEvent) {
+                try {
+                    val payload = json.decodeFromString<RealtimeConversationSummaryPayload>(event.data)
+                    _events.tryEmit(RealtimeEvent.ConversationSummaryUpdated(payload.conversation))
+                    DebugLogger.success(
+                        LogCategory.CONVERSATION,
+                        "Resume conversation recu",
+                        "Conv: ${payload.conversation.id}"
+                    )
+                } catch (e: Exception) {
+                    DebugLogger.error(LogCategory.ERROR, "Erreur parsing resume conversation", e.message)
+                }
             }
-        }
+        })
 
         inboxChannelName = targetChannel
         inboxChannel = channel

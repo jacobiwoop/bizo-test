@@ -9,11 +9,24 @@ enum class LogLevel { INFO, WARN, ERROR, SUCCESS }
 enum class LogCategory { AUTH, PROFILE, LISTING, FAVORITE, CONVERSATION, MESSAGE, NAV, ERROR }
 
 data class LogEntry(
-    val timestamp: String = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date()),
+    val timestamp: String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date()),
     val level: LogLevel,
     val category: LogCategory,
     val title: String,
     val details: String? = null
+)
+
+data class SendDebugLogsResponse(
+    val message: String,
+    val reference: String,
+    val received_at: String
+)
+
+data class DebugLogHistoryItem(
+    val reference: String,
+    val received_at: String,
+    val log_count: Int,
+    val file: String
 )
 
 object DebugLogger {

@@ -50,12 +50,15 @@ class ProfileViewModel(
     }
 
     fun loadProfile() {
+        DebugLogger.info(LogCategory.PROFILE, "Chargement du profil...")
         viewModelScope.launch {
             try {
                 val response = bizoService.getProfile()
                 _user.value = response.data
                 sessionManager.saveUser(response.data)
+                DebugLogger.success(LogCategory.PROFILE, "Profil chargé avec succès", "User: ${response.data.display_name}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.PROFILE, "Erreur chargement profil", e.message)
                 e.printStackTrace()
             }
         }
@@ -166,16 +169,23 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 ProfileOption(Icons.Default.Notifications, "Notifications") {}
-                ProfileOption(Icons.Default.Lock, "Sécurité") {}
+                ProfileOption(Icons.Default.Lock, "Sécurité") {
+                    navController.navigate("debug_logs")
+                    DebugLogger.info(LogCategory.NAV, "Navigation vers DebugLogsScreen")
+                }
                 ProfileOption(Icons.Default.Info, "Aide & Support") {}
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 TextButton(
                     onClick = {
+                        DebugLogger.info(LogCategory.AUTH, "Tentative de déconnexion")
                         scope.launch {
-                            try { bizoService.logout() } catch (e: Exception) {}
+                            try { bizoService.logout() } catch (e: Exception) {
+                                DebugLogger.warn(LogCategory.AUTH, "Logout API failed, continuing local clear", e.message)
+                            }
                             sessionManager.clearSession()
+                            DebugLogger.success(LogCategory.AUTH, "Déconnexion réussie")
                             navController.navigate("auth") {
                                 popUpTo(0) { inclusive = true }
                             }

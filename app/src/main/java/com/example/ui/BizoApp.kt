@@ -83,6 +83,9 @@ fun BizoApp() {
             composable(Screen.Profile.route) { 
                 ProfileScreen(navController, bizoService, sessionManager) 
             }
+            composable("debug_logs") {
+                DebugLogsScreen(navController)
+            }
             composable("my_listings") {
                 MyListingsScreen(navController, bizoService)
             }

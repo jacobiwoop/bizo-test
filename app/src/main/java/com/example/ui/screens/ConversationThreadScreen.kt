@@ -54,20 +54,28 @@ class ConversationThreadViewModel(
     }
 
     private fun loadConversation(id: String) {
+        DebugLogger.info(LogCategory.CONVERSATION, "Chargement des détails de la conversation $id")
         viewModelScope.launch {
             try {
                 val response = bizoService.getConversation(id)
                 _conversation.value = response.data
-            } catch (e: Exception) { e.printStackTrace() }
+                DebugLogger.success(LogCategory.CONVERSATION, "Conversation chargée", "Title: ${response.data.listing_title}")
+            } catch (e: Exception) {
+                DebugLogger.error(LogCategory.CONVERSATION, "Erreur chargement conversation", e.message)
+                e.printStackTrace()
+            }
         }
     }
 
     private fun loadMessages(id: String) {
+        DebugLogger.info(LogCategory.MESSAGE, "Chargement des messages pour $id")
         viewModelScope.launch {
             try {
                 val response = bizoService.getMessages(id)
                 _messages.value = response.data.reversed()
+                DebugLogger.success(LogCategory.MESSAGE, "Messages chargés", "Count: ${response.data.size}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.MESSAGE, "Erreur chargement messages", e.message)
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -80,6 +88,7 @@ class ConversationThreadViewModel(
         if (targetId.startsWith("new_")) {
             val partAfterNew = targetId.removePrefix("new_")
             val listingId = partAfterNew.split("?").first()
+            DebugLogger.info(LogCategory.CONVERSATION, "Création d'une nouvelle conversation pour l'annonce $listingId")
             
             viewModelScope.launch {
                 _isLoading.value = true
@@ -92,23 +101,28 @@ class ConversationThreadViewModel(
                     _conversation.value = response.data
                     _messages.value = listOf(response.message)
                     _onConversationCreated.value = realId
+                    DebugLogger.success(LogCategory.CONVERSATION, "Conversation créée", "ID: $realId")
                     
                     loadMessages(realId)
-                } catch (e: Exception) { 
-                    e.printStackTrace() 
+                } catch (e: Exception) {
+                    DebugLogger.error(LogCategory.CONVERSATION, "Erreur création conversation", e.message)
+                    e.printStackTrace()
                     _isLoading.value = false
                 }
             }
         } else {
+            DebugLogger.info(LogCategory.MESSAGE, "Envoi d'un message dans $targetId", "Text: ${text.take(20)}...")
             viewModelScope.launch {
                 try {
                     val body = mapOf("type" to type, "text" to text)
                     val response = bizoService.sendMessage(targetId, body)
-                    // On injecte immédiatement le message de retour pour l'UX (ordre récent en premier)
                     _messages.value = listOf(response.data) + _messages.value
-                    // On synchronise avec le reload au cas où
+                    DebugLogger.success(LogCategory.MESSAGE, "Message envoyé")
                     loadMessages(targetId)
-                } catch (e: Exception) { e.printStackTrace() }
+                } catch (e: Exception) {
+                    DebugLogger.error(LogCategory.MESSAGE, "Erreur envoi message", e.message)
+                    e.printStackTrace()
+                }
             }
         }
     }

@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.data.ConversationResource
+import com.example.data.*
 import com.example.data.api.BizoService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,11 +34,14 @@ class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 
     fun loadConversations() {
+        DebugLogger.info(LogCategory.CONVERSATION, "Chargement des conversations")
         viewModelScope.launch {
             try {
                 val response = bizoService.getConversations()
                 _conversations.value = response.data
+                DebugLogger.success(LogCategory.CONVERSATION, "Conversations chargées", "Count: ${response.data.size}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.CONVERSATION, "Erreur chargement conversations", e.message)
                 e.printStackTrace()
             }
         }
@@ -64,6 +67,7 @@ fun MessagesScreen(navController: NavController, bizoService: BizoService) {
         ) {
             items(conversations) { conversation ->
                 ConversationItem(conversation) {
+                    DebugLogger.info(LogCategory.NAV, "Ouverture conversation", "ID: ${conversation.id}, With: ${conversation.other_user.display_name}")
                     navController.navigate("conversation/${conversation.id}")
                 }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)

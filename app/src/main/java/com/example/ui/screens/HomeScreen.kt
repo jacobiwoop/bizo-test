@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.data.ListingResource
+import com.example.data.*
 import com.example.data.api.BizoService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,11 +30,14 @@ class HomeViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 
     fun loadListings() {
+        DebugLogger.info(LogCategory.LISTING, "Chargement du flux d'accueil")
         viewModelScope.launch {
             try {
                 val response = bizoService.getListings()
                 _listings.value = response.data
+                DebugLogger.success(LogCategory.LISTING, "Flux d'accueil chargé", "Count: ${response.data.size}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.LISTING, "Erreur chargement flux accueil", e.message)
                 e.printStackTrace()
             }
         }
@@ -66,6 +69,7 @@ fun HomeScreen(navController: NavController, bizoService: BizoService) {
         ) {
             items(listings) { listing ->
                 ListingCard(listing) {
+                    DebugLogger.info(LogCategory.NAV, "Ouverture détail annonce", "ID: ${listing.id}, Title: ${listing.title}")
                     navController.navigate("item_detail/${listing.id}")
                 }
             }

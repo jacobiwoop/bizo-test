@@ -80,7 +80,17 @@ interface BizoService {
                     if (token != null) {
                         request.addHeader("Authorization", "Bearer $token")
                     }
-                    chain.proceed(request.build())
+                    val response = chain.proceed(request.build())
+                    
+                    if (!response.isSuccessful) {
+                        DebugLogger.error(
+                            LogCategory.ERROR, 
+                            "Erreur HTTP ${response.code}", 
+                            "URL: ${chain.request().url}, Message: ${response.message}"
+                        )
+                    }
+                    
+                    response
                 }
                 .build()
 

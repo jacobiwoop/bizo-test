@@ -56,11 +56,14 @@ class ItemDetailViewModel(
     }
 
     private fun loadListing() {
+        DebugLogger.info(LogCategory.LISTING, "Chargement de l'annonce $id")
         viewModelScope.launch {
             try {
                 val response = bizoService.getListing(id)
                 _listing.value = response.data
+                DebugLogger.success(LogCategory.LISTING, "Annonce chargée", "Title: ${response.data.title}")
             } catch (e: Exception) {
+                DebugLogger.error(LogCategory.LISTING, "Erreur chargement annonce", e.message)
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -69,31 +72,47 @@ class ItemDetailViewModel(
     }
 
     private fun checkFavoriteStatus() {
+        DebugLogger.info(LogCategory.FAVORITE, "Vérification statut favori pour $id")
         viewModelScope.launch {
             try {
                 val response = bizoService.getFavorites()
-                _isFavorited.value = response.data.any { it.listing_id == id }
-            } catch (e: Exception) { e.printStackTrace() }
+                val isFav = response.data.any { it.listing_id == id }
+                _isFavorited.value = isFav
+                DebugLogger.success(LogCategory.FAVORITE, "Statut favori récupéré", "IsFavorited: $isFav")
+            } catch (e: Exception) {
+                DebugLogger.error(LogCategory.FAVORITE, "Erreur vérification favori", e.message)
+                e.printStackTrace()
+            }
         }
     }
 
     fun toggleFavorite() {
         val current = _isFavorited.value
+        DebugLogger.info(LogCategory.FAVORITE, "${if (current) "Retrait" else "Ajout"} du favori $id")
         viewModelScope.launch {
             try {
                 if (current) bizoService.removeFavorite(id)
                 else bizoService.addFavorite(id)
                 _isFavorited.value = !current
-            } catch (e: Exception) { e.printStackTrace() }
+                DebugLogger.success(LogCategory.FAVORITE, "Favori ${if (current) "retiré" else "ajouté"}")
+            } catch (e: Exception) {
+                DebugLogger.error(LogCategory.FAVORITE, "Erreur toggle favori", e.message)
+                e.printStackTrace()
+            }
         }
     }
 
     fun deleteListing(onSuccess: () -> Unit) {
+        DebugLogger.warn(LogCategory.LISTING, "Tentative de suppression de l'annonce $id")
         viewModelScope.launch {
             try {
                 bizoService.deleteListing(id)
+                DebugLogger.success(LogCategory.LISTING, "Annonce supprimée avec succès")
                 onSuccess()
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {
+                DebugLogger.error(LogCategory.LISTING, "Erreur suppression annonce", e.message)
+                e.printStackTrace()
+            }
         }
     }
 }

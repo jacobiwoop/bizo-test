@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserResource(
     val id: String,
-    val email: String,
+    val email: String? = null,
     val display_name: String,
     val username: String? = null,
     val photo_url: String? = null,
@@ -16,7 +16,7 @@ data class UserResource(
     val total_sales: Int? = null,
     val is_verified: Boolean? = null,
     val has_seen_onboarding: Boolean? = null,
-    val created_at: String
+    val created_at: String? = null
 )
 
 @Serializable

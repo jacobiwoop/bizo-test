@@ -33,6 +33,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelProvider
+
 class DebugLogsViewModel(private val bizoService: BizoService) : ViewModel() {
     private val _history = MutableStateFlow<List<DebugLogHistoryItem>>(emptyList())
     val history: StateFlow<List<DebugLogHistoryItem>> = _history
@@ -61,35 +66,38 @@ class DebugLogsViewModel(private val bizoService: BizoService) : ViewModel() {
         }
     }
 
-    fun sendLogs(logs: List<LogEntry>) {
+    fun sendLogs(logs: List<LogEntry>, context: Context) {
         if (logs.isEmpty()) return
+
+        val packageInfo = try {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        } catch (e: Exception) {
+            null
+        }
+
+        val appVersion = packageInfo?.versionName ?: "1.0.0-unknown"
+        val appBuild = packageInfo?.let {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                it.longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                it.versionCode
+            }
+        } ?: 0
 
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val payload = mapOf(
-                    "app" to mapOf(
-                        "version" to "1.0.0-debug",
-                        "build" to 42
+                val request = DebugLogsRequest(
+                    app = AppInfo(version = appVersion, build = appBuild),
+                    device = DeviceInfo(
+                        model = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
+                        android = android.os.Build.VERSION.RELEASE
                     ),
-                    "device" to mapOf(
-                        "model" to "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
-                        "android" to android.os.Build.VERSION.RELEASE
-                    ),
-                    "context" to mapOf(
-                        "screen" to "debug_logs"
-                    ),
-                    "logs" to logs.map {
-                        mapOf(
-                            "timestamp" to it.timestamp,
-                            "level" to it.level.name,
-                            "category" to it.category.name,
-                            "title" to it.title,
-                            "details" to it.details
-                        )
-                    }
+                    context = LogContext(screen = "debug_logs"),
+                    logs = logs
                 )
-                val response = bizoService.sendDebugLogs(payload)
+                val response = bizoService.sendDebugLogs(request)
                 _sendResult.value = response
                 loadHistory()
             } catch (e: Exception) {
@@ -105,10 +113,18 @@ class DebugLogsViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
+class DebugLogsViewModelFactory(private val bizoService: BizoService) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return DebugLogsViewModel(bizoService) as T
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugLogsScreen(navController: NavController, bizoService: BizoService) {
-    val viewModel: DebugLogsViewModel = remember { DebugLogsViewModel(bizoService) }
+    val context = LocalContext.current
+    val viewModel: DebugLogsViewModel = viewModel(factory = DebugLogsViewModelFactory(bizoService))
     val logs by DebugLogger.logs.collectAsState()
     val history by viewModel.history.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -128,7 +144,7 @@ fun DebugLogsScreen(navController: NavController, bizoService: BizoService) {
                 },
                 actions = {
                     if (selectedTab == 0) {
-                        IconButton(onClick = { viewModel.sendLogs(logs) }, enabled = logs.isNotEmpty() && !isLoading) {
+                        IconButton(onClick = { viewModel.sendLogs(logs, context) }, enabled = logs.isNotEmpty() && !isLoading) {
                             if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                             else Icon(Icons.Default.Send, contentDescription = "Envoyer au serveur")
                         }

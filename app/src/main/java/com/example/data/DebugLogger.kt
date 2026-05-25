@@ -2,26 +2,57 @@ package com.example.data
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
 import java.util.*
 
 enum class LogLevel { INFO, WARN, ERROR, SUCCESS }
 enum class LogCategory { AUTH, PROFILE, LISTING, FAVORITE, CONVERSATION, MESSAGE, NAV, ERROR }
 
+@Serializable
 data class LogEntry(
-    val timestamp: String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date()),
+    val timestamp: String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }.format(Date()),
     val level: LogLevel,
     val category: LogCategory,
     val title: String,
     val details: String? = null
 )
 
+@Serializable
+data class AppInfo(
+    val version: String,
+    val build: Int
+)
+
+@Serializable
+data class DeviceInfo(
+    val model: String,
+    val android: String
+)
+
+@Serializable
+data class LogContext(
+    val screen: String
+)
+
+@Serializable
+data class DebugLogsRequest(
+    val app: AppInfo,
+    val device: DeviceInfo,
+    val context: LogContext,
+    val logs: List<LogEntry>
+)
+
+@Serializable
 data class SendDebugLogsResponse(
     val message: String,
     val reference: String,
     val received_at: String
 )
 
+@Serializable
 data class DebugLogHistoryItem(
     val reference: String,
     val received_at: String,

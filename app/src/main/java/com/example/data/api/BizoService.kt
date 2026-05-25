@@ -64,7 +64,7 @@ interface BizoService {
     suspend fun updateListing(@Path("id") id: String, @Body body: Map<String, String>): DataResponse<ListingResource>
 
     @POST("debug-logs")
-    suspend fun sendDebugLogs(@Body body: Map<String, @JvmSuppressWildcards Any?>): SendDebugLogsResponse
+    suspend fun sendDebugLogs(@Body body: DebugLogsRequest): SendDebugLogsResponse
 
     @GET("debug-logs/history")
     suspend fun getDebugLogsHistory(): DataResponse<List<DebugLogHistoryItem>>

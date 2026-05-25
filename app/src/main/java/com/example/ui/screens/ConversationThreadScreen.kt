@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,10 +37,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -204,6 +206,7 @@ fun ConversationThreadScreen(
     val onConvCreated by viewModel.onConversationCreated.collectAsState()
     val currentUserId = remember { sessionManager.getUserId() }
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     var messageText by remember { mutableStateOf("") }
 
@@ -243,7 +246,7 @@ fun ConversationThreadScreen(
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+            listState.scrollToItem(messages.lastIndex)
         }
     }
 
@@ -272,42 +275,6 @@ fun ConversationThreadScreen(
                     }
                 }
             )
-        },
-        bottomBar = {
-            Surface(
-                tonalElevation = 2.dp,
-                modifier = Modifier.imePadding()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Votre message...") },
-                        colors = TextFieldDefaults.colors(
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedContainerColor = Color.Transparent
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            val trimmed = messageText.trim()
-                            if (trimmed.isNotEmpty()) {
-                                viewModel.sendMessage(trimmed)
-                                messageText = ""
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
         }
     ) { padding ->
         if (isLoading) {
@@ -320,33 +287,81 @@ fun ConversationThreadScreen(
                 CircularProgressIndicator()
             }
         } else {
-            LazyColumn(
-                state = listState,
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(padding)
+                    .imePadding()
             ) {
-                items(messages, key = { it.id }) { message ->
-                    MessageBubble(
-                        message = message,
-                        isMe = message.sender_id == currentUserId
-                    )
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(messages, key = { it.id }) { message ->
+                        MessageBubble(
+                            message = message,
+                            isMe = message.sender_id == currentUserId
+                        )
+                    }
+
+                    if (convId.startsWith("new_") && messages.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Dites bonjour pour demarrer la conversation.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
 
-                if (convId.startsWith("new_") && messages.isEmpty()) {
-                    item {
-                        Column(
+                Surface(
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.navigationBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Dites bonjour pour demarrer la conversation.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                .weight(1f)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused && messages.isNotEmpty()) {
+                                        scope.launch {
+                                            listState.scrollToItem(messages.lastIndex)
+                                        }
+                                    }
+                                },
+                            placeholder = { Text("Votre message...") },
+                            colors = TextFieldDefaults.colors(
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent
                             )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                val trimmed = messageText.trim()
+                                if (trimmed.isNotEmpty()) {
+                                    viewModel.sendMessage(trimmed)
+                                    messageText = ""
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

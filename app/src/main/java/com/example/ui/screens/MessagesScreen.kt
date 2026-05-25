@@ -2,91 +2,61 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.data.*
-import com.example.data.api.BizoService
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-
-class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
-    private val _conversations = MutableStateFlow<List<ConversationResource>>(emptyList())
-    val conversations: StateFlow<List<ConversationResource>> = _conversations
-
-    init {
-        loadConversations()
-    }
-
-    fun loadConversations() {
-        DebugLogger.info(LogCategory.CONVERSATION, "Chargement des conversations")
-        viewModelScope.launch {
-            try {
-                val response = bizoService.getConversations()
-                _conversations.value = sortConversations(response.data)
-                DebugLogger.success(LogCategory.CONVERSATION, "Conversations chargées", "Count: ${response.data.size}")
-            } catch (e: Exception) {
-                DebugLogger.error(LogCategory.CONVERSATION, "Erreur chargement conversations", e.message)
-                e.printStackTrace()
-            }
-        }
-    }
-
-    fun upsertConversation(conversation: ConversationResource) {
-        val updated = _conversations.value
-            .filterNot { it.id == conversation.id }
-            .plus(conversation)
-
-        _conversations.value = sortConversations(updated)
-    }
-
-    private fun sortConversations(conversations: List<ConversationResource>): List<ConversationResource> {
-        return conversations.sortedByDescending { it.last_message_at ?: it.created_at }
-    }
-}
-
-class MessagesViewModelFactory(
-    private val bizoService: BizoService
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return MessagesViewModel(bizoService) as T
-    }
-}
+import com.example.data.ConversationResource
+import com.example.data.DebugLogger
+import com.example.data.InboxStateStore
+import com.example.data.LogCategory
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     navController: NavController,
-    bizoService: BizoService,
-    realtimeManager: RealtimeManager
+    inboxStore: InboxStateStore
 ) {
-    val viewModel: MessagesViewModel = viewModel(factory = MessagesViewModelFactory(bizoService))
-    val conversations by viewModel.conversations.collectAsState()
+    val conversations by inboxStore.conversations.collectAsState()
 
-    LaunchedEffect(realtimeManager) {
-        realtimeManager.events.collectLatest { event ->
-            if (event is RealtimeEvent.ConversationSummaryUpdated) {
-                viewModel.upsertConversation(event.conversation)
-            }
+    LaunchedEffect(Unit) {
+        inboxStore.setActiveConversation(null)
+        if (conversations.isEmpty()) {
+            inboxStore.refresh()
         }
     }
 
@@ -97,16 +67,37 @@ fun MessagesScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
-            contentPadding = PaddingValues(bottom = padding.calculateBottomPadding())
-        ) {
-            items(conversations) { conversation ->
-                ConversationItem(conversation) {
-                    DebugLogger.info(LogCategory.NAV, "Ouverture conversation", "ID: ${conversation.id}, With: ${conversation.other_user.display_name}")
-                    navController.navigate("conversation/${conversation.id}")
+        if (conversations.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Aucune conversation pour le moment.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding()),
+                contentPadding = PaddingValues(bottom = padding.calculateBottomPadding())
+            ) {
+                items(conversations, key = { it.id }) { conversation ->
+                    ConversationItem(conversation) {
+                        DebugLogger.info(
+                            LogCategory.NAV,
+                            "Ouverture conversation",
+                            "ID: ${conversation.id}, With: ${conversation.other_user.display_name}"
+                        )
+                        inboxStore.markConversationReadLocally(conversation.id)
+                        navController.navigate("conversation/${conversation.id}")
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
                 }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
             }
         }
     }
@@ -118,13 +109,16 @@ fun ConversationItem(conversation: ConversationResource, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val otherUser = conversation.other_user
         val photoUrl = otherUser.photo_url
         Box(
-            modifier = Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             if (photoUrl != null) {
@@ -136,28 +130,66 @@ fun ConversationItem(conversation: ConversationResource, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Text(otherUser.display_name.take(1))
+                Text(otherUser.display_name.take(1).uppercase(), fontWeight = FontWeight.Bold)
             }
         }
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = otherUser.display_name, fontWeight = FontWeight.Bold)
-            Text(
-                text = conversation.last_message ?: "Aucun message",
-                maxLines = 1,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (conversation.unread_count > 0) MaterialTheme.colorScheme.primary else Color.Gray
-            )
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = otherUser.display_name,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = formatConversationTime(conversation.last_message_at ?: conversation.created_at),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = conversation.last_message ?: "Aucun message",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (conversation.unread_count > 0) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (conversation.unread_count > 0) {
+                    Surface(shape = CircleShape, color = Color.Transparent) {
+                        Badge {
+                            Text(if (conversation.unread_count > 99) "99+" else conversation.unread_count.toString())
+                        }
+                    }
+                }
+            }
         }
-        
-        if (conversation.unread_count > 0) {
-            Surface(
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-                modifier = Modifier.size(12.dp)
-            ) {}
-        }
+    }
+}
+
+private fun formatConversationTime(raw: String): String {
+    return runCatching {
+        val normalized = raw.substringBefore('.').replace("T", " ")
+        val parsed = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).parse(normalized)
+        SimpleDateFormat("HH:mm", Locale.FRANCE).format(parsed!!)
+    }.getOrElse {
+        raw.take(5)
     }
 }

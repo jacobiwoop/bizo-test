@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -41,10 +40,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -52,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.data.ConversationResource
 import com.example.data.DebugLogger
+import com.example.data.InboxStateStore
 import com.example.data.LogCategory
 import com.example.data.MessageResource
 import com.example.data.RealtimeEvent
@@ -62,9 +65,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class ConversationThreadViewModel(
     private val bizoService: BizoService,
@@ -211,7 +216,8 @@ fun ConversationThreadScreen(
     bizoService: BizoService,
     convId: String,
     sessionManager: SessionManager,
-    realtimeManager: RealtimeManager
+    realtimeManager: RealtimeManager,
+    inboxStore: InboxStateStore
 ) {
     val viewModel: ConversationThreadViewModel = viewModel(
         key = convId,
@@ -224,6 +230,8 @@ fun ConversationThreadScreen(
     val currentUserId = remember { sessionManager.getUserId() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density)
 
     var messageText by remember { mutableStateOf("") }
 
@@ -234,7 +242,7 @@ fun ConversationThreadScreen(
     }
 
     LaunchedEffect(viewModel) {
-        viewModel.onConversationCreated.collectLatest { newId ->
+        viewModel.onConversationCreated.collect { newId ->
             navController.navigate("conversation/$newId") {
                 popUpTo("conversation/$convId") { inclusive = true }
             }
@@ -243,26 +251,37 @@ fun ConversationThreadScreen(
 
     LaunchedEffect(currentConvId) {
         if (!currentConvId.startsWith("new_")) {
+            inboxStore.setActiveConversation(currentConvId)
+            inboxStore.markConversationRead(currentConvId)
             realtimeManager.subscribeToThread(currentConvId)
         }
     }
 
     DisposableEffect(currentConvId) {
         onDispose {
+            inboxStore.setActiveConversation(null)
             realtimeManager.unsubscribeFromThread()
         }
     }
 
     LaunchedEffect(realtimeManager, currentConvId) {
-        realtimeManager.events.collectLatest { event ->
+        realtimeManager.events.collect { event ->
             if (event is RealtimeEvent.MessageCreated && event.message.conv_id == currentConvId) {
                 viewModel.onRealtimeMessage(event.message)
+                inboxStore.markConversationReadLocally(currentConvId)
             }
         }
     }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
+            listState.scrollToItem(messages.lastIndex)
+        }
+    }
+
+    LaunchedEffect(imeBottom) {
+        if (imeBottom > 0 && messages.isNotEmpty()) {
+            delay(120)
             listState.scrollToItem(messages.lastIndex)
         }
     }
@@ -308,12 +327,11 @@ fun ConversationThreadScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .imePadding()
             ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 20.dp),
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
@@ -358,7 +376,7 @@ fun ConversationThreadScreen(
                                 .onFocusChanged { focusState ->
                                     if (focusState.isFocused && messages.isNotEmpty()) {
                                         scope.launch {
-                                            delay(250)
+                                            delay(120)
                                             listState.scrollToItem(messages.lastIndex)
                                         }
                                     }
@@ -418,5 +436,22 @@ fun MessageBubble(message: MessageResource, isMe: Boolean) {
                 )
             }
         }
+        Text(
+            text = formatMessageTime(message.created_at),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = if (isMe) TextAlign.End else TextAlign.Start,
+            modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
+        )
+    }
+}
+
+private fun formatMessageTime(raw: String): String {
+    return runCatching {
+        val normalized = raw.substringBefore('.').replace("T", " ")
+        val parsed = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).parse(normalized)
+        SimpleDateFormat("HH:mm", Locale.FRANCE).format(parsed!!)
+    }.getOrElse {
+        ""
     }
 }

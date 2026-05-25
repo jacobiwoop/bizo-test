@@ -5,6 +5,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,10 +21,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.data.InboxStateStore
+import com.example.data.RealtimeEvent
 import com.example.data.RealtimeManager
 import com.example.data.SessionManager
 import com.example.data.api.BizoService
 import com.example.ui.screens.*
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun BizoApp() {
@@ -31,6 +36,7 @@ fun BizoApp() {
     val sessionManager = remember { SessionManager(context) }
     val bizoService = remember { BizoService.create(sessionManager) }
     val realtimeManager = remember { RealtimeManager(sessionManager) }
+    val inboxStore = remember { InboxStateStore(bizoService) }
     
     val items = listOf(
         Screen.Home,
@@ -41,13 +47,25 @@ fun BizoApp() {
     val currentDestination = navBackStackEntry?.destination
     val authToken by sessionManager.authToken.collectAsState()
     val userId by sessionManager.userId.collectAsState()
+    val inboxConversations by inboxStore.conversations.collectAsState()
+    val unreadCount = inboxConversations.sumOf { it.unread_count }
     val showBottomBar = items.any { it.route == currentDestination?.route }
 
     LaunchedEffect(userId) {
         if (userId != null) {
+            inboxStore.refresh()
             realtimeManager.subscribeToInbox(userId!!)
         } else {
+            inboxStore.clear()
             realtimeManager.unsubscribeFromInbox()
+        }
+    }
+
+    LaunchedEffect(realtimeManager) {
+        realtimeManager.events.collect { event ->
+            if (event is RealtimeEvent.ConversationSummaryUpdated) {
+                inboxStore.upsertConversation(event.conversation)
+            }
         }
     }
 
@@ -67,7 +85,21 @@ fun BizoApp() {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                     items.forEach { screen ->
                         NavigationBarItem(
-                            icon = { Icon(screen.icon!!, contentDescription = null) },
+                            icon = {
+                                if (screen.route == Screen.Messages.route && unreadCount > 0) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge {
+                                                Text(if (unreadCount > 99) "99+" else unreadCount.toString())
+                                            }
+                                        }
+                                    ) {
+                                        Icon(screen.icon!!, contentDescription = null)
+                                    }
+                                } else {
+                                    Icon(screen.icon!!, contentDescription = null)
+                                }
+                            },
                             label = { Text(screen.route.replaceFirstChar { it.uppercase() }) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
@@ -102,7 +134,7 @@ fun BizoApp() {
                 HomeScreen(navController, bizoService) 
             }
             composable(Screen.Messages.route) { 
-                MessagesScreen(navController, bizoService, realtimeManager) 
+                MessagesScreen(navController, inboxStore) 
             }
             composable(Screen.Profile.route) { 
                 ProfileScreen(navController, bizoService, sessionManager) 
@@ -129,7 +161,7 @@ fun BizoApp() {
             }
             composable("conversation/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id")!!
-                ConversationThreadScreen(navController, bizoService, id, sessionManager, realtimeManager)
+                ConversationThreadScreen(navController, bizoService, id, sessionManager, realtimeManager, inboxStore)
             }
         }
     }

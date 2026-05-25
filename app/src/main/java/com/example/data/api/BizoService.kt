@@ -43,6 +43,9 @@ interface BizoService {
     @GET("conversations/{id}/messages")
     suspend fun getMessages(@Path("id") id: String): PaginatedResponse<MessageResource>
 
+    @POST("conversations/{id}/read")
+    suspend fun markConversationRead(@Path("id") id: String): Map<String, String>
+
     @POST("conversations/{id}/messages")
     suspend fun sendMessage(
         @Path("id") id: String,

@@ -194,18 +194,30 @@ fun ItemDetailScreen(itemId: String, onBack: () -> Unit, onNavigateToConversatio
                 Text("Description", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Black)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Article en parfait état. Toujours protégé. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                    text = product.description,
                     style = MaterialTheme.typography.bodyLarge,
                     color = Black
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Additional Specs mockup
+                // Additional Specs
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    SpecBox(title = "ÉTAT", value = "Excellent", modifier = Modifier.weight(1f))
+                    SpecBox(
+                        title = "ÉTAT", 
+                        value = product.condition.replaceFirstChar { it.uppercase() }, 
+                        modifier = Modifier.weight(1f)
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    SpecBox(title = "REMISE", value = "En main propre", modifier = Modifier.weight(1f))
+                    SpecBox(
+                        title = "REMISE", 
+                        value = when(product.deliveryMode) {
+                            "main_propre" -> "Main propre"
+                            "livraison" -> "Livraison"
+                            else -> "Les deux"
+                        }, 
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(100.dp)) // space for sticky bottom bar

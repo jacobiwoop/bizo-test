@@ -24,8 +24,12 @@ import com.example.ui.theme.Black
 import com.example.ui.theme.White
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.RoundedCornerShape
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import com.example.ui.theme.GraySurface
 import com.example.ui.theme.GrayText
 import kotlinx.coroutines.launch
@@ -57,15 +61,27 @@ fun ProfileScreen(
         Text(text = "Mon Profil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
         Spacer(modifier = Modifier.height(32.dp))
         
-        // Avatar Placeholder
+        // Avatar
         Box(
             modifier = Modifier
                 .size(100.dp)
-                .background(GraySurface, RoundedCornerShape(50.dp))
+                .clip(CircleShape)
+                .background(GraySurface)
                 .align(Alignment.CenterHorizontally),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = displayName.take(1).uppercase(), style = MaterialTheme.typography.displaySmall, color = GrayText)
+            val photoUrl = user?.photo_url
+            if (photoUrl != null) {
+                val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
+                AsyncImage(
+                    model = fullUrl,
+                    contentDescription = "Avatar",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(text = displayName.take(1).uppercase(), style = MaterialTheme.typography.displaySmall, color = GrayText)
+            }
         }
         
         Spacer(modifier = Modifier.height(24.dp))

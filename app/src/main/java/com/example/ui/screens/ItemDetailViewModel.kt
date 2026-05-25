@@ -62,7 +62,14 @@ class ItemDetailViewModel(private val bizoService: BizoService) : ViewModel() {
                     } ?: "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400",
                     type = type,
                     sellerName = listing.owner?.display_name ?: "Utilisateur",
-                    timeAgo = "Récemment"
+                    timeAgo = "Récemment",
+                    description = listing.description,
+                    category = listing.category,
+                    condition = listing.condition,
+                    deliveryMode = listing.delivery_mode,
+                    photos = listing.photos.map { path ->
+                        if (path.startsWith("http")) path else "https://bizo.aiko.qzz.io$path"
+                    }
                 )
                 
                 _state.value = _state.value.copy(product = product, isLoading = false)

@@ -220,7 +220,12 @@ data class Product(
     val imageUrl: String,
     val type: TransactionType,
     val sellerName: String,
-    val timeAgo: String
+    val timeAgo: String,
+    val description: String = "",
+    val category: String = "",
+    val condition: String = "",
+    val deliveryMode: String = "",
+    val photos: List<String> = emptyList()
 )
 
 val mockProducts = listOf(

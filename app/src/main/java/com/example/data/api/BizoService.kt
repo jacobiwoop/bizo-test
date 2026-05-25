@@ -10,6 +10,24 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 
 interface BizoService {
+    @POST("auth/login")
+    suspend fun login(@Body body: Map<String, String>): AuthResponse
+
+    @POST("auth/register")
+    suspend fun register(@Body body: Map<String, String>): AuthResponse
+
+    @POST("auth/logout")
+    suspend fun logout(): Map<String, String>
+
+    @GET("favorites")
+    suspend fun getFavorites(): PaginatedResponse<ListingResource>
+
+    @POST("favorites/{listingId}")
+    suspend fun addFavorite(@Path("listingId") listingId: String): Map<String, String>
+
+    @DELETE("favorites/{listingId}")
+    suspend fun removeFavorite(@Path("listingId") listingId: String): Map<String, String>
+
     @GET("listings")
     suspend fun getListings(@Query("category") category: String? = null): PaginatedResponse<ListingResource>
 

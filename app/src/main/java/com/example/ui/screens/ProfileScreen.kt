@@ -71,6 +71,8 @@ fun ProfileScreen(
     val viewModel = remember { ProfileViewModel(bizoService, sessionManager) }
     val user by viewModel.user.collectAsState()
 
+    val scope = rememberCoroutineScope()
+
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         // Header
         item {
@@ -138,10 +140,10 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 ProfileOption(Icons.Default.ShoppingCart, "Mes annonces") {
-                    // navController.navigate("my_listings")
+                    navController.navigate("my_listings")
                 }
                 ProfileOption(Icons.Default.Favorite, "Mes favoris") {
-                    // navController.navigate("favorites")
+                    navController.navigate("favorites")
                 }
                 ProfileOption(Icons.Default.Edit, "Modifier le profil") {
                     // navController.navigate("edit_profile")
@@ -160,8 +162,13 @@ fun ProfileScreen(
                 
                 TextButton(
                     onClick = {
-                        sessionManager.clearSession()
-                        // navController.navigate("auth") { popUpTo(0) }
+                        scope.launch {
+                            try { bizoService.logout() } catch (e: Exception) {}
+                            sessionManager.clearSession()
+                            navController.navigate("auth") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)

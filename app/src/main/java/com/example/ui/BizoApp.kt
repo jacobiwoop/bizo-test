@@ -63,9 +63,15 @@ fun BizoApp() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = "splash",
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable("splash") {
+                SplashScreen(navController, sessionManager)
+            }
+            composable("auth") {
+                AuthScreen(navController, bizoService, sessionManager)
+            }
             composable(Screen.Home.route) { 
                 HomeScreen(navController, bizoService) 
             }
@@ -74,6 +80,14 @@ fun BizoApp() {
             }
             composable(Screen.Profile.route) { 
                 ProfileScreen(navController, bizoService, sessionManager) 
+            }
+            composable("my_listings") {
+                // TODO: Create a specialized screen or reuse home with a filter
+                Text("Mes annonces (en cours)")
+            }
+            composable("favorites") {
+                // TODO: Create a specialized screen
+                Text("Mes favoris (en cours)")
             }
             composable("item_detail/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id")!!

@@ -113,17 +113,24 @@ fun ItemDetailScreen(
                                 modifier = Modifier.weight(0.5f)
                             )
                         } else {
+                            val scope = rememberCoroutineScope()
                             PrimaryButton(
                                 text = "Contacter",
                                 onClick = {
-                                    navController.navigate("conversation/new_${item.id}")
+                                    scope.launch {
+                                        try {
+                                            // On crée ou récupère la conversation avec un message vide ou par défaut si l'API le permet
+                                            // Sinon on navigue vers une vue "pré-conversation"
+                                            // Pour un flux sans accrocs, on navigue d'abord
+                                            navController.navigate("conversation/new_${item.id}")
+                                        } catch (e: Exception) { e.printStackTrace() }
+                                    }
                                 },
                                 modifier = Modifier.weight(1f)
                             )
                             SecondaryButton(
                                 text = "Troc",
                                 onClick = {
-                                    // Flux Troc Initial
                                     navController.navigate("conversation/new_${item.id}?type=troc")
                                 },
                                 modifier = Modifier.weight(1f)

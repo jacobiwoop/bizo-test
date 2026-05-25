@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 
 class ConversationThreadViewModel(
     private val bizoService: BizoService,
-    private val convId: String
+    private val convIdInitial: String
 ) : ViewModel() {
     private val _messages = MutableStateFlow<List<MessageResource>>(emptyList())
     val messages: StateFlow<List<MessageResource>> = _messages
@@ -38,21 +38,22 @@ class ConversationThreadViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _currentConvId = MutableStateFlow(convIdInitial)
+    val currentConvId: StateFlow<String> = _currentConvId
+
     init {
-        if (convId.startsWith("new_")) {
-            // C'est une nouvelle conversation initiée depuis une annonce
-            // On attendra l'envoi du premier message pour l'ID réel
-            _isLoading.value = false
+        if (!convIdInitial.startsWith("new_")) {
+            loadMessages(convIdInitial)
         } else {
-            loadMessages()
+            _isLoading.value = false
         }
     }
 
-    private fun loadMessages() {
+    private fun loadMessages(id: String) {
         viewModelScope.launch {
             try {
-                val response = bizoService.getMessages(convId)
-                _messages.value = response.data.reversed() // Inverser pour afficher du bas vers le haut si besoin ou selon l'UX
+                val response = bizoService.getMessages(id)
+                _messages.value = response.data.reversed()
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -61,25 +62,33 @@ class ConversationThreadViewModel(
         }
     }
 
-    fun sendMessage(text: String, currentConvId: String? = null) {
-        val targetId = currentConvId ?: convId
+    fun sendMessage(text: String, type: String = "text") {
+        val targetId = _currentConvId.value
         if (targetId.startsWith("new_")) {
-            val listingId = targetId.removePrefix("new_")
+            // Parsing propre du listingId si présence de ?type=...
+            val partAfterNew = targetId.removePrefix("new_")
+            val listingId = partAfterNew.split("?").first()
+            
             viewModelScope.launch {
+                _isLoading.value = true
                 try {
                     val body = mapOf("listing_id" to listingId, "message" to text)
                     val response = bizoService.createConversation(body)
-                    // Une fois créée, on navigue ou recharge avec le vrai ID
-                    // Pour simplifier ici le flow, on rajoute le message localement
-                    loadMessages() // Serait remplacé par une redirection ou un reload
-                } catch (e: Exception) { e.printStackTrace() }
+                    // On récupère le vrai ID
+                    val realId = response.data.id
+                    _currentConvId.value = realId
+                    loadMessages(realId)
+                } catch (e: Exception) { 
+                    e.printStackTrace() 
+                    _isLoading.value = false
+                }
             }
         } else {
             viewModelScope.launch {
                 try {
-                    val body = mapOf("type" to "text", "text" to text)
+                    val body = mapOf("type" to type, "text" to text)
                     bizoService.sendMessage(targetId, body)
-                    loadMessages()
+                    loadMessages(targetId)
                 } catch (e: Exception) { e.printStackTrace() }
             }
         }
@@ -99,7 +108,16 @@ fun ConversationThreadScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val currentUserId = sessionManager.getUserId()
     
+    // On extrait le type depuis la route (si on passait des arguments riches ce serait mieux)
+    // Ici on simplifie en initialisant messageText si c'est un troc
     var messageText by remember { mutableStateOf("") }
+    
+    // Effet initial pour le troc
+    LaunchedEffect(convId) {
+        if (convId.contains("type=troc")) {
+            messageText = "Je suis intéressé par un troc pour cet article."
+        }
+    }
 
     Scaffold(
         topBar = {

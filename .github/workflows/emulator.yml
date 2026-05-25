@@ -1,0 +1,52 @@
+name: Manual Testing Session
+
+on:
+  workflow_dispatch:
+
+jobs:
+  manual-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Start docker-android
+        run: |
+          docker run -d \
+            --device /dev/kvm \
+            -p 6080:6080 \
+            -v $(pwd)/app/build/outputs/apk/debug:/apk \
+            -e EMULATOR_DEVICE="Samsung Galaxy S10" \
+            -e WEB_VNC=true \
+            -e APPIUM=false \
+            budtmo/docker-android:emulator_11.0
+
+      - name: Wait for emulator to boot
+        run: sleep 120
+
+      - name: Install APK
+        run: |
+          docker exec $(docker ps -q) adb install /apk/app-debug.apk
+
+      - name: Install cloudflared
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            -o cloudflared && chmod +x cloudflared
+
+      - name: Start tunnel and display URL
+        run: |
+          ./cloudflared tunnel --url http://localhost:6080 > /tmp/cloudflared.log 2>&1 &
+          sleep 8
+          grep -o 'https://.*\.trycloudflare\.com' /tmp/cloudflared.log | head -1
+
+      - name: Keep session alive
+        run: sleep 21600

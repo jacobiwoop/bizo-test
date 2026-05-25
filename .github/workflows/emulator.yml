@@ -6,8 +6,18 @@ on:
 jobs:
   manual-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Enable KVM
         run: |
@@ -22,6 +32,7 @@ jobs:
       - name: Start docker-android
         run: |
           docker run -d \
+            --name android-emulator \
             --device /dev/kvm \
             -p 6080:6080 \
             -v $(pwd)/app/build/outputs/apk/debug:/apk \
@@ -31,11 +42,22 @@ jobs:
             budtmo/docker-android:emulator_11.0
 
       - name: Wait for emulator to boot
-        run: sleep 120
+        run: |
+          docker exec android-emulator adb wait-for-device
+          for i in $(seq 1 60); do
+            BOOTED=$(docker exec android-emulator adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            if [ "$BOOTED" = "1" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Emulator did not finish booting in time"
+          docker logs android-emulator | tail -n 200
+          exit 1
 
       - name: Install APK
         run: |
-          docker exec $(docker ps -q) adb install /apk/app-debug.apk
+          docker exec android-emulator adb install -r /apk/app-debug.apk
 
       - name: Install cloudflared
         run: |
@@ -50,3 +72,7 @@ jobs:
 
       - name: Keep session alive
         run: sleep 21600
+
+      - name: Dump emulator logs on failure
+        if: failure()
+        run: docker logs android-emulator | tail -n 200

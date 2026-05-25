@@ -105,7 +105,7 @@ fun ProfileScreen(
                 )
                 
                 Text(
-                    text = "@${user?.username ?: "bizo_user"}",
+                    text = if (user?.username != null) "@${user?.username}" else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
                 )

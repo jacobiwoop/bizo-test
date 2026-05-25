@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
@@ -63,6 +64,7 @@ class ItemDetailViewModel(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemDetailScreen(
     navController: NavController,
@@ -92,6 +94,36 @@ fun ItemDetailScreen(
         val photos = if (item.photos.isEmpty()) listOf("https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400") else item.photos
 
         Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(item.title, maxLines = 1, style = MaterialTheme.typography.titleMedium) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        }
+                    },
+                    actions = {
+                        var isFavorited by remember { mutableStateOf(false) } // TODO: Get from backend
+                        val scope = rememberCoroutineScope()
+                        IconButton(onClick = {
+                            scope.launch {
+                                try {
+                                    if (isFavorited) bizoService.removeFavorite(item.id)
+                                    else bizoService.addFavorite(item.id)
+                                    isFavorited = !isFavorited
+                                } catch (e: Exception) { e.printStackTrace() }
+                            }
+                        }) {
+                            Icon(
+                                if (isFavorited) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                contentDescription = null,
+                                tint = if (isFavorited) Color.Red else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        IconButton(onClick = {}) { Icon(Icons.Default.Share, null) }
+                    }
+                )
+            },
             bottomBar = {
                 Surface(shadowElevation = 8.dp) {
                     Row(
@@ -144,7 +176,7 @@ fun ItemDetailScreen(
                 // Galerie
                 item {
                     val pagerState = rememberPagerState(pageCount = { photos.size })
-                    Box(modifier = Modifier.fillMaxWidth().height(400.dp)) {
+                    Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxSize()
@@ -168,7 +200,7 @@ fun ItemDetailScreen(
                                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
                                 color = Color.Black.copy(alpha = 0.5f),
                                 shape = CircleShape
-                            ) {
+                             ) {
                                 Text(
                                     text = "${pagerState.currentPage + 1} / ${photos.size}",
                                     color = Color.White,
@@ -177,32 +209,18 @@ fun ItemDetailScreen(
                                 )
                             }
                         }
-                        
-                        // Bouton retour
-                        IconButton(
-                            onClick = { navController.popBackStack() },
-                            modifier = Modifier.padding(16.dp).statusBarsPadding()
-                                .background(Color.White.copy(alpha = 0.7f), CircleShape)
-                        ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = null)
-                        }
                     }
                 }
                 
                 // Infos de base
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = item.category.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            IconButton(onClick = {}) { Icon(Icons.Default.FavoriteBorder, null) }
-                            IconButton(onClick = {}) { Icon(Icons.Default.Share, null) }
-                        }
+                        Text(
+                            text = item.category.uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
                         
                         Text(
                             text = item.title,

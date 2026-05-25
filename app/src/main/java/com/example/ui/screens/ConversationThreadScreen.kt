@@ -44,8 +44,18 @@ class ConversationThreadViewModel(
     init {
         if (!convIdInitial.startsWith("new_")) {
             loadMessages(convIdInitial)
+            loadConversation(convIdInitial)
         } else {
             _isLoading.value = false
+        }
+    }
+
+    private fun loadConversation(id: String) {
+        viewModelScope.launch {
+            try {
+                val response = bizoService.getConversation(id)
+                _conversation.value = response.data
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
@@ -74,9 +84,19 @@ class ConversationThreadViewModel(
                 try {
                     val body = mapOf("listing_id" to listingId, "message" to text)
                     val response = bizoService.createConversation(body)
-                    // On récupère le vrai ID
+                    
+                    // On récupère le vrai ID de conversation
                     val realId = response.data.id
                     _currentConvId.value = realId
+                    _conversation.value = response.data
+                    
+                    // On injecte immédiatement le message retourné par le backend dans la liste locale
+                    // pour éviter d'attendre un rechargement complet si possible, 
+                    // mais comme on veut rester aligné sur le backend, loadMessages(realId) est plus sûr.
+                    // Cependant, le user demande explicitement d'injecter le message.
+                    _messages.value = listOf(response.message)
+                    
+                    // Ensuite on lance un load complet pour être sûr d'avoir l'historique (même si ici il n'y a qu'un message)
                     loadMessages(realId)
                 } catch (e: Exception) { 
                     e.printStackTrace() 
@@ -105,6 +125,7 @@ fun ConversationThreadScreen(
 ) {
     val viewModel = remember { ConversationThreadViewModel(bizoService, convId) }
     val messages by viewModel.messages.collectAsState()
+    val conversation by viewModel.conversation.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val currentUserId = sessionManager.getUserId()
     
@@ -122,7 +143,21 @@ fun ConversationThreadScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Conversation", style = MaterialTheme.typography.titleMedium) },
+                title = { 
+                    Column {
+                        Text(
+                            text = conversation?.other_user?.display_name ?: "Conversation",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (conversation != null) {
+                            Text(
+                                text = conversation!!.listing_title,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -192,8 +227,8 @@ fun ConversationThreadScreen(
 
 @Composable
 fun MessageBubble(message: MessageResource, isMe: Boolean) {
-    val bubbleColor = if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val textColor = if (isMe) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val bubbleColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val textColor = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
     val alignment = if (isMe) Alignment.End else Alignment.Start
     val shape = if (isMe) {
         RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
@@ -201,24 +236,22 @@ fun MessageBubble(message: MessageResource, isMe: Boolean) {
         RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
     }
 
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalAlignment = alignment
+    ) {
         Surface(
             color = bubbleColor,
             shape = shape,
-            tonalElevation = 1.dp
+            shadowElevation = 1.dp
         ) {
-            Text(
-                text = message.text ?: "",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                color = textColor,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Text(
+                    text = message.text ?: "",
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
-        Text(
-            text = "12:34", // TODO: Format date
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.Gray,
-            modifier = Modifier.padding(4.dp)
-        )
     }
 }

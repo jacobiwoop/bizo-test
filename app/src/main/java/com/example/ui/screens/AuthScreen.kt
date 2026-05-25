@@ -8,7 +8,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.data.SessionManager
@@ -64,14 +68,22 @@ fun AuthScreen(navController: NavController, bizoService: BizoService, sessionMa
         
         Spacer(modifier = Modifier.height(16.dp))
 
+        var passwordVisible by remember { mutableStateOf(false) }
+
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Mot de passe") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            singleLine = true
+            singleLine = true,
+            trailingIcon = {
+                val image = if (passwordVisible) Icons.Filled.Check else Icons.Filled.Lock
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(image, contentDescription = null)
+                }
+            }
         )
 
         if (error != null) {

@@ -20,7 +20,7 @@ interface BizoService {
     suspend fun logout(): Map<String, String>
 
     @GET("favorites")
-    suspend fun getFavorites(): PaginatedResponse<ListingResource>
+    suspend fun getFavorites(): PaginatedResponse<FavoriteResource>
 
     @POST("favorites/{listingId}")
     suspend fun addFavorite(@Path("listingId") listingId: String): Map<String, String>
@@ -37,6 +37,9 @@ interface BizoService {
     @GET("conversations")
     suspend fun getConversations(): PaginatedResponse<ConversationResource>
 
+    @GET("conversations/{id}")
+    suspend fun getConversation(@Path("id") id: String): DataResponse<ConversationResource>
+
     @GET("conversations/{id}/messages")
     suspend fun getMessages(@Path("id") id: String): PaginatedResponse<MessageResource>
 
@@ -49,7 +52,7 @@ interface BizoService {
     @POST("conversations")
     suspend fun createConversation(
         @Body body: Map<String, String>
-    ): DataResponse<ConversationResource>
+    ): CreateConversationResponse
 
     @GET("profile")
     suspend fun getProfile(): DataResponse<UserResource>

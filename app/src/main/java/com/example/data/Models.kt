@@ -68,6 +68,21 @@ data class MessageResource(
 )
 
 @Serializable
+data class FavoriteResource(
+    val id: String,
+    val listing_id: String,
+    val listing_title: String? = null,
+    val listing_photo: String? = null,
+    val created_at: String
+)
+
+@Serializable
+data class CreateConversationResponse(
+    val data: ConversationResource,
+    val message: MessageResource
+)
+
+@Serializable
 data class PaginatedResponse<T>(
     val data: List<T>
 )

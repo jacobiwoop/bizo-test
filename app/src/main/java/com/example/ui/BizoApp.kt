@@ -82,12 +82,10 @@ fun BizoApp() {
                 ProfileScreen(navController, bizoService, sessionManager) 
             }
             composable("my_listings") {
-                // TODO: Create a specialized screen or reuse home with a filter
-                Text("Mes annonces (en cours)")
+                MyListingsScreen(navController, bizoService)
             }
             composable("favorites") {
-                // TODO: Create a specialized screen
-                Text("Mes favoris (en cours)")
+                FavoritesScreen(navController, bizoService)
             }
             composable("item_detail/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id")!!

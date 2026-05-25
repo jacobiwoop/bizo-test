@@ -10,6 +10,14 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.theme.Black
 import com.example.ui.theme.White
 
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import com.example.data.ListingResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+
 @Composable
 fun PrimaryButton(
     text: String,
@@ -52,5 +60,51 @@ fun SecondaryButton(
         enabled = enabled
     ) {
         Text(text = text, style = MaterialTheme.typography.titleMedium, color = Black)
+    }
+}
+
+@Composable
+fun ListingItem(listing: ListingResource, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            val photoUrl = listing.photos.firstOrNull()
+            val fullUrl = if (photoUrl != null) {
+                if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
+            } else null
+
+            AsyncImage(
+                model = fullUrl,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(
+                    text = listing.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(
+                    text = "${listing.price ?: 0} FCFA",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${listing.city}${if (listing.neighborhood != null) " - ${listing.neighborhood}" else ""}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
+            }
+        }
     }
 }

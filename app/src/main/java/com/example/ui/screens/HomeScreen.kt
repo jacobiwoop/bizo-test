@@ -1,240 +1,103 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.Dependencies
-import com.example.data.Product
-import com.example.data.mockProducts
-import com.example.ui.components.TransactionBadge
-import com.example.ui.theme.Black
-import com.example.ui.theme.GraySurface
-import com.example.ui.theme.GrayText
-import com.example.ui.theme.White
+import com.example.data.ListingResource
+import com.example.data.api.BizoService
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.platform.LocalLifecycleOwner
+class HomeViewModel(private val bizoService: BizoService) : ViewModel() {
+    private val _listings = MutableStateFlow<List<ListingResource>>(emptyList())
+    val listings: StateFlow<List<ListingResource>> = _listings
 
-@Composable
-fun HomeScreen(onItemClick: (String) -> Unit, onNavigateToNotifications: () -> Unit) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel: HomeViewModel = viewModel(factory = object : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return HomeViewModel(Dependencies.getBizoService(context)) as T
-        }
-    })
-    val products by viewModel.products.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-
-    // Refresh products when screen becomes active (e.g. after publishing)
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.fetchProducts()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+    init {
+        loadListings()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(White)
-    ) {
-        // App Bar Area
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Bizo", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Black)
-            Spacer(modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(GraySurface)
-                    .clickable { onNavigateToNotifications() }
-                    .padding(8.dp)
-            ) {
-                Text("🔔", style = MaterialTheme.typography.bodyLarge)
-            }
-        }
-
-        // Search Bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .height(48.dp)
-                .background(GraySurface, RoundedCornerShape(24.dp))
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = GrayText)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Chercher une annonce...", color = GrayText, style = MaterialTheme.typography.bodyLarge)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Categories (Mocked)
-        Row(modifier = Modifier.padding(horizontal = 20.dp)) {
-            FilterChip(text = "Tout", active = true)
-            Spacer(modifier = Modifier.width(8.dp))
-            FilterChip(text = "Électronique", active = false)
-            Spacer(modifier = Modifier.width(8.dp))
-            FilterChip(text = "Vêtements", active = false)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (isLoading && products.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Black)
-            }
-        } else if (errorMessage != null && products.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⚠️", style = MaterialTheme.typography.displayMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = errorMessage ?: "Erreur inconnue",
-                        color = Black,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { viewModel.fetchProducts() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Black)
-                    ) {
-                        Text("Réessayer", color = White)
-                    }
-                }
-            }
-        } else if (products.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aucune annonce trouvée", color = GrayText)
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 80.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(products) { product ->
-                    ProductCard(product = product, onClick = { onItemClick(product.id) })
-                }
+    fun loadListings() {
+        viewModelScope.launch {
+            try {
+                val response = bizoService.getListings()
+                _listings.value = response.data
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
 }
 
 @Composable
-fun FilterChip(text: String, active: Boolean) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(if (active) Black else GraySurface)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
+fun HomeScreen(navController: NavController, bizoService: BizoService) {
+    val viewModel: HomeViewModel = remember { HomeViewModel(bizoService) }
+    val listings by viewModel.listings.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = text,
-            color = if (active) White else Black,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold
+            text = "Bizo",
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.padding(16.dp)
         )
+        
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(8.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(listings) { listing ->
+                ListingCard(listing) {
+                    navController.navigate("item_detail/${listing.id}")
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun ProductCard(product: Product, onClick: () -> Unit) {
-    Column(
+fun ListingCard(listing: ListingResource, onClick: () -> Unit) {
+    Card(
         modifier = Modifier
+            .padding(8.dp)
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(GraySurface)
-        ) {
-            AsyncImage(
-                model = product.imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            TransactionBadge(
-                type = product.type,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-            )
+        Column {
+            val photoUrl = listing.photos.firstOrNull()
+            if (photoUrl != null) {
+                val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
+                AsyncImage(
+                    model = fullUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(text = listing.title, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(
+                    text = "${listing.price ?: 0} FCFA",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(text = listing.city, style = MaterialTheme.typography.labelSmall)
+            }
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = product.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = Black,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        
-        Text(
-            text = product.price,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = Black
-        )
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Text(
-            text = "📍 ${product.location}",
-            style = MaterialTheme.typography.labelSmall,
-            color = GrayText
-        )
     }
 }

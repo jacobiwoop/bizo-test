@@ -1,268 +1,94 @@
 package com.example.ui
 
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.ui.screens.AuthScreen
-import com.example.ui.screens.HomeScreen
-import com.example.ui.screens.ItemDetailScreen
-import com.example.ui.screens.MessagesScreen
-import com.example.ui.screens.OnboardingScreen
-import com.example.ui.screens.ProfileScreen
-import com.example.ui.screens.PublishScreen
-import com.example.ui.screens.MyListingsScreen
-import com.example.ui.screens.SplashScreen
-import com.example.ui.screens.FavoritesScreen
-import com.example.ui.screens.ConversationThreadScreen
-import com.example.ui.screens.EditProfileScreen
-import com.example.ui.screens.NotificationsScreen
-import com.example.ui.screens.ForgotPasswordScreen
-import com.example.ui.theme.Black
-import com.example.ui.theme.GrayText
-
-sealed class Route(val path: String) {
-    object Splash : Route("splash")
-    object Onboarding : Route("onboarding")
-    object Auth : Route("auth")
-    object Home : Route("home")
-    object Detail : Route("detail/{itemId}") {
-        fun createRoute(itemId: String) = "detail/$itemId"
-    }
-    object Publish : Route("publish")
-    object Messages : Route("messages")
-    object Profile : Route("profile")
-    object MyListings : Route("my_listings")
-    object Favorites : Route("favorites")
-    object ForgotPassword : Route("forgot_password")
-    object Notifications : Route("notifications")
-    object EditProfile : Route("edit_profile")
-    object Conversation : Route("conversation/{convId}") {
-        fun createRoute(convId: String) = "conversation/$convId"
-    }
-}
+import com.example.data.SessionManager
+import com.example.data.api.BizoService
+import com.example.ui.screens.*
 
 @Composable
 fun BizoApp() {
     val navController = rememberNavController()
-    val currentBackStack by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStack?.destination?.route
-
-    val bottomBarRoutes = listOf(Route.Home.path, Route.Messages.path, Route.Profile.path)
-    val showBottomBar = currentRoute in bottomBarRoutes
+    val context = LocalContext.current
+    val sessionManager = SessionManager(context)
+    val bizoService = BizoService.create(sessionManager)
+    
+    val items = listOf(
+        Screen.Home,
+        Screen.Messages,
+        Screen.Profile
+    )
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
         bottomBar = {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
+            val showBottomBar = items.any { it.route == currentDestination?.route }
+            
             if (showBottomBar) {
-                NavigationBar(
-                    containerColor = Color.White,
-                ) {
-                    NavigationBarItem(
-                        selected = currentRoute == Route.Home.path,
-                        onClick = {
-                            navController.navigate(Route.Home.path) {
-                                popUpTo(Route.Home.path) { inclusive = true }
+                NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+                    items.forEach { screen ->
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon!!, contentDescription = null) },
+                            label = { Text(screen.route.replaceFirstChar { it.uppercase() }) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
-                        },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Black,
-                            selectedTextColor = Black,
-                            unselectedIconColor = GrayText,
-                            unselectedTextColor = GrayText,
-                            indicatorColor = Color.Transparent
                         )
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Route.Messages.path,
-                        onClick = {
-                            navController.navigate(Route.Messages.path) {
-                                popUpTo(Route.Home.path)
-                            }
-                        },
-                        icon = { Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Messages") },
-                        label = { Text("Messages") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Black,
-                            selectedTextColor = Black,
-                            unselectedIconColor = GrayText,
-                            unselectedTextColor = GrayText,
-                            indicatorColor = Color.Transparent
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Route.Profile.path,
-                        onClick = {
-                            navController.navigate(Route.Profile.path) {
-                                popUpTo(Route.Home.path)
-                            }
-                        },
-                        icon = { Icon(Icons.Default.PersonOutline, contentDescription = "Profile") },
-                        label = { Text("Profile") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Black,
-                            selectedTextColor = Black,
-                            unselectedIconColor = GrayText,
-                            unselectedTextColor = GrayText,
-                            indicatorColor = Color.Transparent
-                        )
-                    )
-                }
-            }
-        },
-        floatingActionButton = {
-            if (currentRoute == Route.Home.path) {
-                FloatingActionButton(
-                    onClick = { navController.navigate(Route.Publish.path) },
-                    containerColor = Black,
-                    contentColor = Color.White
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Publier")
+                    }
                 }
             }
         }
-    ) { paddingValues ->
+    ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Route.Splash.path,
-            modifier = Modifier.padding(paddingValues)
+            startDestination = Screen.Home.route,
+            modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Route.Splash.path) {
-                SplashScreen(
-                    onNavigateToHome = {
-                        navController.navigate(Route.Home.path) {
-                            popUpTo(Route.Splash.path) { inclusive = true }
-                        }
-                    },
-                    onNavigateToOnboarding = {
-                        navController.navigate(Route.Onboarding.path) {
-                            popUpTo(Route.Splash.path) { inclusive = true }
-                        }
-                    }
-                )
+            composable(Screen.Home.route) { 
+                HomeScreen(navController, bizoService) 
             }
-            composable(Route.Onboarding.path) {
-                OnboardingScreen(
-                    onStart = {
-                        navController.navigate(Route.Auth.path) {
-                            popUpTo(Route.Onboarding.path) { inclusive = true }
-                        }
-                    },
-                    onLogin = {
-                        navController.navigate(Route.Auth.path) {
-                            popUpTo(Route.Onboarding.path) { inclusive = true }
-                        }
-                    }
-                )
+            composable(Screen.Messages.route) { 
+                MessagesScreen(navController, bizoService) 
             }
-            composable(Route.Auth.path) {
-                AuthScreen(
-                    onAuthenticated = {
-                        navController.navigate(Route.Home.path) {
-                            popUpTo(Route.Auth.path) { inclusive = true }
-                        }
-                    },
-                    onForgotPassword = {
-                        navController.navigate(Route.ForgotPassword.path)
-                    }
-                )
+            composable(Screen.Profile.route) { 
+                ProfileScreen(navController, bizoService, sessionManager) 
             }
-            composable(Route.ForgotPassword.path) {
-                ForgotPasswordScreen(onBack = { navController.popBackStack() })
+            composable("item_detail/{id}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")!!
+                ItemDetailScreen(navController, bizoService, id, sessionManager)
             }
-            composable(Route.Home.path) {
-                HomeScreen(
-                    onItemClick = { itemId ->
-                        navController.navigate(Route.Detail.createRoute(itemId))
-                    },
-                    onNavigateToNotifications = {
-                        navController.navigate(Route.Notifications.path)
-                    }
-                )
-            }
-            composable(Route.Notifications.path) {
-                NotificationsScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Route.Detail.path) { backStackEntry ->
-                val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
-                ItemDetailScreen(
-                    itemId = itemId,
-                    onBack = { navController.popBackStack() },
-                    onNavigateToConversation = { convId ->
-                        navController.navigate(Route.Conversation.createRoute(convId))
-                    }
-                )
-            }
-            composable(Route.Publish.path) {
-                PublishScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Route.Messages.path) {
-                MessagesScreen()
-            }
-            composable(Route.Profile.path) {
-                ProfileScreen(
-                    onNavigateToMyListings = {
-                        navController.navigate(Route.MyListings.path)
-                    },
-                    onNavigateToFavorites = {
-                        navController.navigate(Route.Favorites.path)
-                    },
-                    onNavigateToEditProfile = {
-                        navController.navigate(Route.EditProfile.path)
-                    },
-                    onLogout = {
-                        navController.navigate(Route.Onboarding.path) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                )
-            }
-            composable(Route.MyListings.path) {
-                MyListingsScreen(
-                    onBack = { navController.popBackStack() },
-                    onItemClick = { itemId: String ->
-                        navController.navigate(Route.Detail.createRoute(itemId))
-                    }
-                )
-            }
-            composable(Route.Favorites.path) {
-                FavoritesScreen(
-                    onBack = { navController.popBackStack() },
-                    onItemClick = { itemId: String ->
-                        navController.navigate(Route.Detail.createRoute(itemId))
-                    }
-                )
-            }
-            composable(Route.EditProfile.path) {
-                EditProfileScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Route.Conversation.path) { backStackEntry ->
-                val convId = backStackEntry.arguments?.getString("convId") ?: ""
-                ConversationThreadScreen(convId = convId, onBack = { navController.popBackStack() })
+            composable("conversation/{id}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")!!
+                ConversationThreadScreen(navController, bizoService, id, sessionManager)
             }
         }
     }
+}
+
+sealed class Screen(val route: String, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+    object Home : Screen("home", Icons.Default.Home)
+    object Messages : Screen("messages", Icons.Default.Email)
+    object Profile : Screen("profile", Icons.Default.Person)
 }

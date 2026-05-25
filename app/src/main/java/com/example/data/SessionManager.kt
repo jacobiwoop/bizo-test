@@ -1,39 +1,38 @@
 package com.example.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import android.content.SharedPreferences
 
-val Context.dataStore by preferencesDataStore(name = "settings")
+class SessionManager(context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("bizo_prefs", Context.MODE_PRIVATE)
 
-class SessionManager(private val context: Context) {
-    private val TOKEN_KEY = stringPreferencesKey("auth_token")
-    private val USER_KEY = stringPreferencesKey("user_data")
-
-    val authToken: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[TOKEN_KEY]
+    fun saveAuthToken(token: String) {
+        prefs.edit().putString("auth_token", token).apply()
     }
 
-    val userData: Flow<UserResource?> = context.dataStore.data.map { preferences ->
-        preferences[USER_KEY]?.let { Json.decodeFromString<UserResource>(it) }
+    fun getAuthToken(): String? {
+        return prefs.getString("auth_token", null)
     }
 
-    suspend fun saveSession(token: String, user: UserResource) {
-        context.dataStore.edit { preferences ->
-            preferences[TOKEN_KEY] = token
-            preferences[USER_KEY] = Json.encodeToString(user)
+    fun saveUserId(userId: String) {
+        prefs.edit().putString("user_id", userId).apply()
+    }
+
+    fun getUserId(): String? {
+        return prefs.getString("user_id", null)
+    }
+    
+    fun saveUser(user: UserResource) {
+        prefs.edit().apply {
+            putString("user_id", user.id)
+            putString("user_name", user.display_name)
+            putString("user_email", user.email)
+            putString("user_photo", user.photo_url)
+            apply()
         }
     }
 
-    suspend fun clearSession() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(TOKEN_KEY)
-            preferences.remove(USER_KEY)
-        }
+    fun clearSession() {
+        prefs.edit().clear().apply()
     }
 }

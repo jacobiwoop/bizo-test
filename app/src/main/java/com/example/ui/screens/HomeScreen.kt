@@ -41,22 +41,28 @@ class HomeViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController, bizoService: BizoService) {
     val viewModel: HomeViewModel = remember { HomeViewModel(bizoService) }
     val listings by viewModel.listings.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "Bizo",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(16.dp)
-        )
-        
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Bizo", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+            )
+        }
+    ) { padding ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(8.dp),
-            modifier = Modifier.fillMaxSize()
+            contentPadding = PaddingValues(
+                start = 8.dp, 
+                end = 8.dp, 
+                top = 8.dp, 
+                bottom = padding.calculateBottomPadding() + 8.dp
+            ),
+            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())
         ) {
             items(listings) { listing ->
                 ListingCard(listing) {

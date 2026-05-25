@@ -45,19 +45,23 @@ class MessagesViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(navController: NavController, bizoService: BizoService) {
     val viewModel = remember { MessagesViewModel(bizoService) }
     val conversations by viewModel.conversations.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "Messages",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(16.dp)
-        )
-        
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Messages", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
+            contentPadding = PaddingValues(bottom = padding.calculateBottomPadding())
+        ) {
             items(conversations) { conversation ->
                 ConversationItem(conversation) {
                     navController.navigate("conversation/${conversation.id}")

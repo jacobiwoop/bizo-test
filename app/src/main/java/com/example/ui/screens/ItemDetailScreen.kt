@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
@@ -46,8 +47,12 @@ class ItemDetailViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _isFavorited = MutableStateFlow(false)
+    val isFavorited: StateFlow<Boolean> = _isFavorited
+
     init {
         loadListing()
+        checkFavoriteStatus()
     }
 
     private fun loadListing() {
@@ -60,6 +65,35 @@ class ItemDetailViewModel(
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    private fun checkFavoriteStatus() {
+        viewModelScope.launch {
+            try {
+                val response = bizoService.getFavorites()
+                _isFavorited.value = response.data.any { it.listing_id == id }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun toggleFavorite() {
+        val current = _isFavorited.value
+        viewModelScope.launch {
+            try {
+                if (current) bizoService.removeFavorite(id)
+                else bizoService.addFavorite(id)
+                _isFavorited.value = !current
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun deleteListing(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                bizoService.deleteListing(id)
+                onSuccess()
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 }
@@ -80,6 +114,8 @@ fun ItemDetailScreen(
     var showFullScreenPager by remember { mutableStateOf(false) }
     var selectedPhotoIndex by remember { mutableStateOf(0) }
 
+    val isFavorited by viewModel.isFavorited.collectAsState()
+
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -96,31 +132,21 @@ fun ItemDetailScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(item.title, maxLines = 1, style = MaterialTheme.typography.titleMedium) },
+                    title = { Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                         }
                     },
                     actions = {
-                        var isFavorited by remember { mutableStateOf(false) } // TODO: Get from backend
-                        val scope = rememberCoroutineScope()
-                        IconButton(onClick = {
-                            scope.launch {
-                                try {
-                                    if (isFavorited) bizoService.removeFavorite(item.id)
-                                    else bizoService.addFavorite(item.id)
-                                    isFavorited = !isFavorited
-                                } catch (e: Exception) { e.printStackTrace() }
-                            }
-                        }) {
+                        IconButton(onClick = { viewModel.toggleFavorite() }) {
                             Icon(
                                 if (isFavorited) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = null,
                                 tint = if (isFavorited) Color.Red else MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        IconButton(onClick = {}) { Icon(Icons.Default.Share, null) }
+                        IconButton(onClick = { /* Share logic */ }) { Icon(Icons.Default.Share, null) }
                     }
                 )
             },
@@ -135,28 +161,24 @@ fun ItemDetailScreen(
                     ) {
                         if (isOwner) {
                             PrimaryButton(
-                                text = "Modifier l'annonce",
-                                onClick = { /* TODO */ },
+                                text = "Modifier",
+                                onClick = { /* TODO: navigation */ },
                                 modifier = Modifier.weight(1f)
                             )
                             SecondaryButton(
                                 text = "Supprimer",
-                                onClick = { /* TODO */ },
-                                modifier = Modifier.weight(0.5f)
+                                onClick = { 
+                                    viewModel.deleteListing {
+                                        navController.popBackStack()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
                             )
                         } else {
-                            val scope = rememberCoroutineScope()
                             PrimaryButton(
                                 text = "Contacter",
                                 onClick = {
-                                    scope.launch {
-                                        try {
-                                            // On crée ou récupère la conversation avec un message vide ou par défaut si l'API le permet
-                                            // Sinon on navigue vers une vue "pré-conversation"
-                                            // Pour un flux sans accrocs, on navigue d'abord
-                                            navController.navigate("conversation/new_${item.id}")
-                                        } catch (e: Exception) { e.printStackTrace() }
-                                    }
+                                    navController.navigate("conversation/new_${item.id}")
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -172,7 +194,7 @@ fun ItemDetailScreen(
                 }
             }
         ) { padding ->
-            LazyColumn(modifier = Modifier.padding(padding)) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
                 // Galerie
                 item {
                     val pagerState = rememberPagerState(pageCount = { photos.size })

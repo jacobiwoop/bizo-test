@@ -54,6 +54,12 @@ interface BizoService {
         @Body body: Map<String, String>
     ): CreateConversationResponse
 
+    @DELETE("listings/{id}")
+    suspend fun deleteListing(@Path("id") id: String): Map<String, String>
+
+    @PUT("listings/{id}")
+    suspend fun updateListing(@Path("id") id: String, @Body body: Map<String, String>): DataResponse<ListingResource>
+
     @GET("profile")
     suspend fun getProfile(): DataResponse<UserResource>
 

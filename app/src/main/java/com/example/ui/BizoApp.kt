@@ -64,7 +64,9 @@ fun BizoApp() {
         NavHost(
             navController = navController,
             startDestination = "splash",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(
+                bottom = innerPadding.calculateBottomPadding()
+            )
         ) {
             composable("splash") {
                 SplashScreen(navController, sessionManager)

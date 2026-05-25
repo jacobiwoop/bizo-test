@@ -62,6 +62,7 @@ class ProfileViewModel(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
@@ -73,7 +74,17 @@ fun ProfileScreen(
 
     val scope = rememberCoroutineScope()
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Mon profil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
+            contentPadding = PaddingValues(bottom = padding.calculateBottomPadding())
+        ) {
         // Header
         item {
             Column(
@@ -182,6 +193,7 @@ fun ProfileScreen(
             }
         }
     }
+}
 }
 
 @Composable

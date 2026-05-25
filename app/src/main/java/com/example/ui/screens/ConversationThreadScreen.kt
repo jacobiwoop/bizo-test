@@ -41,6 +41,9 @@ class ConversationThreadViewModel(
     private val _currentConvId = MutableStateFlow(convIdInitial)
     val currentConvId: StateFlow<String> = _currentConvId
 
+    private val _onConversationCreated = MutableStateFlow<String?>(null)
+    val onConversationCreated: StateFlow<String?> = _onConversationCreated
+
     init {
         if (!convIdInitial.startsWith("new_")) {
             loadMessages(convIdInitial)
@@ -75,7 +78,6 @@ class ConversationThreadViewModel(
     fun sendMessage(text: String, type: String = "text") {
         val targetId = _currentConvId.value
         if (targetId.startsWith("new_")) {
-            // Parsing propre du listingId si présence de ?type=...
             val partAfterNew = targetId.removePrefix("new_")
             val listingId = partAfterNew.split("?").first()
             
@@ -85,18 +87,12 @@ class ConversationThreadViewModel(
                     val body = mapOf("listing_id" to listingId, "message" to text)
                     val response = bizoService.createConversation(body)
                     
-                    // On récupère le vrai ID de conversation
                     val realId = response.data.id
                     _currentConvId.value = realId
                     _conversation.value = response.data
-                    
-                    // On injecte immédiatement le message retourné par le backend dans la liste locale
-                    // pour éviter d'attendre un rechargement complet si possible, 
-                    // mais comme on veut rester aligné sur le backend, loadMessages(realId) est plus sûr.
-                    // Cependant, le user demande explicitement d'injecter le message.
                     _messages.value = listOf(response.message)
+                    _onConversationCreated.value = realId
                     
-                    // Ensuite on lance un load complet pour être sûr d'avoir l'historique (même si ici il n'y a qu'un message)
                     loadMessages(realId)
                 } catch (e: Exception) { 
                     e.printStackTrace() 
@@ -107,7 +103,10 @@ class ConversationThreadViewModel(
             viewModelScope.launch {
                 try {
                     val body = mapOf("type" to type, "text" to text)
-                    bizoService.sendMessage(targetId, body)
+                    val response = bizoService.sendMessage(targetId, body)
+                    // On injecte immédiatement le message de retour pour l'UX (ordre récent en premier)
+                    _messages.value = listOf(response.data) + _messages.value
+                    // On synchronise avec le reload au cas où
                     loadMessages(targetId)
                 } catch (e: Exception) { e.printStackTrace() }
             }
@@ -131,6 +130,17 @@ fun ConversationThreadScreen(
     
     // On extrait le type depuis la route (si on passait des arguments riches ce serait mieux)
     // Ici on simplifie en initialisant messageText si c'est un troc
+    val onConvCreated by viewModel.onConversationCreated.collectAsState()
+    
+    LaunchedEffect(onConvCreated) {
+        onConvCreated?.let { newId ->
+            // On remplace la route actuelle par la vraie pour éviter de revenir sur "new_..." au back
+            navController.navigate("conversation/$newId") {
+                popUpTo("conversation/$convId") { inclusive = true }
+            }
+        }
+    }
+
     var messageText by remember { mutableStateOf("") }
     
     // Effet initial pour le troc

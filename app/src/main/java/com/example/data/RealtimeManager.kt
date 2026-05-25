@@ -2,12 +2,12 @@ package com.example.data
 
 import com.pusher.client.Pusher
 import com.pusher.client.PusherOptions
+import com.pusher.client.Authorizer
 import com.pusher.client.channel.PrivateChannel
 import com.pusher.client.channel.PrivateChannelEventListener
 import com.pusher.client.channel.SubscriptionEventListener
 import com.pusher.client.connection.ConnectionEventListener
 import com.pusher.client.connection.ConnectionState
-import com.pusher.client.util.ChannelAuthorizer
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.json.Json
@@ -31,7 +31,7 @@ class RealtimeManager(
         .connectTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private val authorizer = ChannelAuthorizer { channelName, socketId ->
+    private val authorizer = Authorizer { channelName, socketId ->
         val token = sessionManager.getAuthToken().orEmpty()
         require(token.isNotBlank()) { "Token utilisateur manquant pour l'auth WebSocket." }
 
@@ -61,7 +61,7 @@ class RealtimeManager(
         .setHost("bizo.aiko.qzz.io")
         .setWsPort(80)
         .setWssPort(443)
-        .setChannelAuthorizer(authorizer)
+        .setAuthorizer(authorizer)
 
     private val pusher = Pusher("eert8x7wnwzya7scgtan", options)
     private var didConnect = false

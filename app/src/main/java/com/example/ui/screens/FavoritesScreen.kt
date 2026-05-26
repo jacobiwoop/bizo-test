@@ -7,9 +7,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,18 +27,28 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
 import com.example.data.api.BizoService
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class FavoritesViewModel(private val bizoService: BizoService) : ViewModel() {
+@HiltViewModel
+class FavoritesViewModel @Inject constructor(private val bizoService: BizoService) : ViewModel() {
     private val _favorites = MutableStateFlow<List<FavoriteResource>>(emptyList())
     val favorites: StateFlow<List<FavoriteResource>> = _favorites
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
 
     init {
         loadFavorites()
@@ -42,13 +57,15 @@ class FavoritesViewModel(private val bizoService: BizoService) : ViewModel() {
     private fun loadFavorites() {
         DebugLogger.info(LogCategory.FAVORITE, "Chargement des favoris")
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
             try {
                 val response = bizoService.getFavorites()
                 _favorites.value = response.data
                 DebugLogger.success(LogCategory.FAVORITE, "Favoris chargés", "Count: ${response.data.size}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.FAVORITE, "Erreur chargement favoris", e.message)
-                e.printStackTrace()
+                _error.value = "Impossible de charger les favoris."
             } finally {
                 _isLoading.value = false
             }
@@ -70,33 +87,20 @@ class FavoritesViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreen(navController: NavController, bizoService: BizoService) {
-    val viewModel = remember { FavoritesViewModel(bizoService) }
-    val favorites by viewModel.favorites.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val viewModel: FavoritesViewModel = hiltViewModel()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Mes favoris") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    BizoScreen(title = "Mes favoris", onBack = { navController.popBackStack() }) { padding ->
         if (isLoading) {
-            Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            BizoStatePane("Chargement...", modifier = Modifier.padding(padding), loading = true)
+        } else if (error != null && favorites.isEmpty()) {
+            BizoStatePane(error!!, modifier = Modifier.padding(padding))
         } else if (favorites.isEmpty()) {
-            Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Vous n'avez pas encore de favoris.")
-            }
+            BizoStatePane("Vous n'avez pas encore de favoris.", modifier = Modifier.padding(padding))
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),

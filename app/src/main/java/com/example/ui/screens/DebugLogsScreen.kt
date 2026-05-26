@@ -25,20 +25,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.data.*
 import com.example.data.api.BizoService
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 import android.content.Context
-import android.content.pm.PackageManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModelProvider
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-class DebugLogsViewModel(private val bizoService: BizoService) : ViewModel() {
+@HiltViewModel
+class DebugLogsViewModel @Inject constructor(private val bizoService: BizoService) : ViewModel() {
     private val _history = MutableStateFlow<List<DebugLogHistoryItem>>(emptyList())
     val history: StateFlow<List<DebugLogHistoryItem>> = _history
 
@@ -113,57 +117,42 @@ class DebugLogsViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
-class DebugLogsViewModelFactory(private val bizoService: BizoService) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return DebugLogsViewModel(bizoService) as T
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugLogsScreen(navController: NavController, bizoService: BizoService) {
     val context = LocalContext.current
-    val viewModel: DebugLogsViewModel = viewModel(factory = DebugLogsViewModelFactory(bizoService))
+    val viewModel: DebugLogsViewModel = hiltViewModel()
     val logs by DebugLogger.logs.collectAsState()
-    val history by viewModel.history.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val sendResult by viewModel.sendResult.collectAsState()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val sendResult by viewModel.sendResult.collectAsStateWithLifecycle()
     
     val clipboardManager = LocalClipboardManager.current
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Debug & Logs", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
-                    }
-                },
-                actions = {
-                    if (selectedTab == 0) {
-                        IconButton(onClick = { viewModel.sendLogs(logs, context) }, enabled = logs.isNotEmpty() && !isLoading) {
-                            if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                            else Icon(Icons.Default.Send, contentDescription = "Envoyer au serveur")
-                        }
-                        IconButton(onClick = {
-                            val text = logs.joinToString("\n") { "[${it.timestamp}] [${it.category}] [${it.level}] ${it.title}: ${it.details ?: ""}" }
-                            clipboardManager.setText(AnnotatedString(text))
-                        }) {
-                            Icon(Icons.Default.Info, contentDescription = "Copier logs")
-                        }
-                        IconButton(onClick = { DebugLogger.clear() }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Effacer")
-                        }
-                    } else {
-                        IconButton(onClick = { viewModel.loadHistory() }, enabled = !isLoading) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Actualiser")
-                        }
-                    }
+    BizoScreen(
+        title = "Debug & Logs",
+        onBack = { navController.popBackStack() },
+        actions = {
+            if (selectedTab == 0) {
+                IconButton(onClick = { viewModel.sendLogs(logs, context) }, enabled = logs.isNotEmpty() && !isLoading) {
+                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.Send, contentDescription = "Envoyer au serveur")
                 }
-            )
+                IconButton(onClick = {
+                    val text = logs.joinToString("\n") { "[${it.timestamp}] [${it.category}] [${it.level}] ${it.title}: ${it.details ?: ""}" }
+                    clipboardManager.setText(AnnotatedString(text))
+                }) {
+                    Icon(Icons.Default.Info, contentDescription = "Copier logs")
+                }
+                IconButton(onClick = { DebugLogger.clear() }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Effacer")
+                }
+            } else {
+                IconButton(onClick = { viewModel.loadHistory() }, enabled = !isLoading) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Actualiser")
+                }
+            }
         },
         bottomBar = {
             NavigationBar {
@@ -185,9 +174,7 @@ fun DebugLogsScreen(navController: NavController, bizoService: BizoService) {
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (selectedTab == 0) {
                 if (logs.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Aucun log disponible", color = Color.Gray)
-                    }
+                    BizoStatePane("Aucun log disponible")
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -201,13 +188,9 @@ fun DebugLogsScreen(navController: NavController, bizoService: BizoService) {
                 }
             } else {
                 if (isLoading && history.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                    BizoStatePane("Chargement...", loading = true)
                 } else if (history.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Aucun historique d'envoi", color = Color.Gray)
-                    }
+                    BizoStatePane("Aucun historique d'envoi")
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),

@@ -32,18 +32,31 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
 import com.example.data.api.BizoService
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class ProfileViewModel(
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
     private val bizoService: BizoService,
     private val sessionManager: SessionManager
 ) : ViewModel() {
     private val _user = MutableStateFlow<UserResource?>(null)
     val user: StateFlow<UserResource?> = _user
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
 
     init {
         loadProfile()
@@ -52,6 +65,8 @@ class ProfileViewModel(
     fun loadProfile() {
         DebugLogger.info(LogCategory.PROFILE, "Chargement du profil...")
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
             try {
                 val response = bizoService.getProfile()
                 _user.value = response.data
@@ -59,7 +74,9 @@ class ProfileViewModel(
                 DebugLogger.success(LogCategory.PROFILE, "Profil chargé avec succès", "User: ${response.data.display_name}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.PROFILE, "Erreur chargement profil", e.message)
-                e.printStackTrace()
+                _error.value = "Impossible de charger le profil."
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -72,18 +89,22 @@ fun ProfileScreen(
     bizoService: BizoService,
     sessionManager: SessionManager
 ) {
-    val viewModel = remember { ProfileViewModel(bizoService, sessionManager) }
-    val user by viewModel.user.collectAsState()
+    val viewModel: ProfileViewModel = hiltViewModel()
+    val user by viewModel.user.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
 
     val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Mon profil", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
-            )
+    BizoScreen(title = "Mon profil") { padding ->
+        if (isLoading && user == null) {
+            BizoStatePane("Chargement du profil...", modifier = Modifier.padding(padding), loading = true)
+            return@BizoScreen
         }
-    ) { padding ->
+        if (error != null && user == null) {
+            BizoStatePane(error!!, modifier = Modifier.padding(padding))
+            return@BizoScreen
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
             contentPadding = PaddingValues(bottom = padding.calculateBottomPadding())
@@ -202,7 +223,6 @@ fun ProfileScreen(
             }
         }
     }
-}
 }
 
 @Composable

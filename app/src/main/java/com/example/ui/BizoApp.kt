@@ -107,7 +107,7 @@ fun BizoApp(
                 SplashScreen(navController, sessionManager)
             }
             composable("auth") {
-                AuthScreen(navController, bizoService, sessionManager)
+                AuthScreen(navController)
             }
             composable(Screen.Home.route) { 
                 HomeScreen(navController, bizoService) 

@@ -1,15 +1,17 @@
 package com.example.ui.screens
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import com.example.data.api.BizoService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class AuthViewModel(
+@HiltViewModel
+class AuthViewModel @Inject constructor(
     private val bizoService: BizoService,
     private val sessionManager: SessionManager
 ) : ViewModel() {
@@ -66,15 +68,5 @@ class AuthViewModel(
                 _isLoading.value = false
             }
         }
-    }
-}
-
-class AuthViewModelFactory(
-    private val bizoService: BizoService,
-    private val sessionManager: SessionManager
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return AuthViewModel(bizoService, sessionManager) as T
     }
 }

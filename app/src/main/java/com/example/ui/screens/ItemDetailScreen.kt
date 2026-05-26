@@ -3,13 +3,14 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
@@ -28,6 +29,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
+import com.example.ui.components.BizoStatePane
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,6 +62,9 @@ class ItemDetailViewModel @Inject constructor(
     private val _isDeleting = MutableStateFlow(false)
     val isDeleting: StateFlow<Boolean> = _isDeleting
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     val currentUserId: String?
         get() = sessionManager.getUserId()
 
@@ -68,15 +73,18 @@ class ItemDetailViewModel @Inject constructor(
         checkFavoriteStatus()
     }
 
-    private fun loadListing() {
+    fun loadListing() {
         DebugLogger.info(LogCategory.LISTING, "Chargement de l'annonce $id")
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
             try {
-                val listing = bizoService.getListing(id)
+                val listing = bizoService.getListing(id).data
                 _listing.value = listing
                 DebugLogger.success(LogCategory.LISTING, "Annonce chargée", "Title: ${listing.title}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.LISTING, "Erreur chargement annonce", e.message)
+                _error.value = "Impossible de charger cette annonce."
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -139,8 +147,9 @@ fun ItemDetailScreen(navController: NavController) {
     val viewModel: ItemDetailViewModel = hiltViewModel()
     val listing by viewModel.listing.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
     val currentUserId = viewModel.currentUserId
-    
+
     var showFullScreenPager by remember { mutableStateOf(false) }
     var selectedPhotoIndex by remember { mutableStateOf(0) }
 
@@ -150,17 +159,33 @@ fun ItemDetailScreen(navController: NavController) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        BizoStatePane("Chargement de l'annonce...", loading = true)
     } else if (listing == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Annonce introuvable")
+        BizoStatePane(
+            text = error ?: "Annonce introuvable",
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 48.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            SecondaryButton(
+                text = "Réessayer",
+                onClick = { viewModel.loadListing() },
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+            )
         }
     } else {
         val item = listing!!
         val isOwner = item.owner?.id == currentUserId
-        val photos = if (item.photos.isEmpty()) listOf("https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400") else item.photos
+        val photos = if (item.photos.isEmpty()) {
+            listOf("https://images.unsplash.com/photo-1632661674596-df8be070a5c5?auto=format&fit=crop&q=80&w=400")
+        } else {
+            item.photos
+        }
 
         Scaffold(
             topBar = {
@@ -168,7 +193,7 @@ fun ItemDetailScreen(navController: NavController) {
                     title = { Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                         }
                     },
                     actions = {
@@ -184,7 +209,7 @@ fun ItemDetailScreen(navController: NavController) {
                 )
             },
             bottomBar = {
-                Surface(shadowElevation = 8.dp) {
+                Surface(shadowElevation = 8.dp, tonalElevation = 4.dp) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -230,11 +255,19 @@ fun ItemDetailScreen(navController: NavController) {
                 }
             }
         ) { padding ->
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Galerie
+            val pagerState = rememberPagerState(pageCount = { photos.size })
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(bottom = 20.dp)
+            ) {
                 item {
-                    val pagerState = rememberPagerState(pageCount = { photos.size })
-                    Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(320.dp)
+                    ) {
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxSize()
@@ -250,14 +283,40 @@ fun ItemDetailScreen(navController: NavController) {
                                 contentScale = ContentScale.Crop
                             )
                         }
-                        
-                        // Indicateur de page
+
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(16.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                            shape = RoundedCornerShape(999.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item.type.replace("_", " "),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = item.category.replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+
                         if (photos.size > 1) {
                             Surface(
-                                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(16.dp),
                                 color = Color.Black.copy(alpha = 0.5f),
                                 shape = CircleShape
-                             ) {
+                            ) {
                                 Text(
                                     text = "${pagerState.currentPage + 1} / ${photos.size}",
                                     color = Color.White,
@@ -268,89 +327,141 @@ fun ItemDetailScreen(navController: NavController) {
                         }
                     }
                 }
-                
-                // Infos de base
+
                 item {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = item.category.uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         Text(
                             text = item.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
-                        Text(
-                            text = "${item.price ?: 0} FCFA",
                             style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = detailPriceText(item),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (!item.exchange_for.isNullOrBlank()) {
+                                    Text(
+                                        text = "Recherche : ${item.exchange_for}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = RoundedCornerShape(999.dp)
+                            ) {
+                                Text(
+                                    text = item.condition.replace("_", " ").replaceFirstChar { it.uppercase() },
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
                         Text(
-                            text = "${item.city}${if (item.neighborhood != null) ", ${item.neighborhood}" else ""}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
+                            text = "${item.city}${if (item.neighborhood != null) " • ${item.neighborhood}" else ""}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            DetailPill("Livraison", item.delivery_mode.replace("_", " "))
+                            DetailPill("Vues", item.view_count.toString())
+                            DetailPill("Favoris", item.favorite_count.toString())
                         )
                     }
                 }
-                
-                // Vendeur
+
                 item {
                     val owner = item.owner
                     if (owner != null) {
-                        Surface(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp)
+                        ElevatedCard(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .fillMaxWidth()
                         ) {
-                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 val avatarUrl = owner.photo_url
                                 Box(
-                                    modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Gray),
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (avatarUrl != null) {
-                                        AsyncImage(MediaUrlResolver.resolve(avatarUrl), null, contentScale = ContentScale.Crop)
+                                        AsyncImage(
+                                            model = MediaUrlResolver.resolve(avatarUrl),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
                                     } else {
                                         Text(owner.display_name.take(1))
                                     }
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Column {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(owner.display_name, fontWeight = FontWeight.Bold)
-                                    Text("Note: ${owner.rating ?: 0.0} (★)", style = MaterialTheme.typography.labelSmall)
+                                    Text(
+                                        text = "Note ${owner.rating ?: 0.0} • ${owner.review_count ?: 0} avis",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                Spacer(modifier = Modifier.weight(1f))
-                                TextButton(onClick = { /* TODO */ }) {
-                                    Text("Voir profil")
+                                FilledTonalButton(onClick = { /* TODO public seller profile */ }) {
+                                    Text("Profil")
                                 }
                             }
                         }
                     }
                 }
-                
-                // Description
+
                 item {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Description", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(item.description, style = MaterialTheme.typography.bodyLarge)
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        // Caractéristiques
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            SpecBox(title = "ÉTAT", value = item.condition, modifier = Modifier.weight(1f))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            SpecBox(title = "LIVRAISON", value = item.delivery_mode, modifier = Modifier.weight(1f))
+                    ElevatedCard(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Text("Description", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(item.description, style = MaterialTheme.typography.bodyLarge)
+
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                SpecBox(title = "Type", value = item.type)
+                                SpecBox(title = "Catégorie", value = item.category)
+                                SpecBox(title = "État", value = item.condition)
+                                SpecBox(title = "Livraison", value = item.delivery_mode)
+                                SpecBox(title = "Pays", value = item.country)
+                            }
                         }
                     }
                 }
@@ -417,7 +528,7 @@ fun ItemDetailScreen(navController: NavController) {
                         onClick = { showFullScreenPager = false },
                         modifier = Modifier.align(Alignment.TopStart).padding(16.dp).statusBarsPadding()
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
                     }
                 }
             }
@@ -426,15 +537,55 @@ fun ItemDetailScreen(navController: NavController) {
 }
 
 @Composable
-fun SpecBox(title: String, value: String, modifier: Modifier = Modifier) {
+private fun DetailPill(title: String, value: String) {
     Surface(
-        modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(999.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-            Text(value.replace("_", " ").uppercase(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        Text(
+            text = "$title · ${value.replace("_", " ")}",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun SpecBox(title: String, value: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value.replace("_", " ").replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
         }
+    }
+}
+
+private fun detailPriceText(listing: ListingResource): String {
+    return when (listing.type) {
+        "VENTE" -> "${listing.price ?: 0} FCFA"
+        "TROC_CASH" -> buildString {
+            append("Troc")
+            listing.cash_complement?.let {
+                append(" + ")
+                append(it)
+                append(" FCFA")
+            }
+        }
+        else -> "Troc"
     }
 }

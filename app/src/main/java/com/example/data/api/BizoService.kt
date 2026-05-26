@@ -34,7 +34,7 @@ interface BizoService {
     suspend fun getListings(@Query("category") category: String? = null): PaginatedResponse<ListingResource>
 
     @GET("listings/{id}")
-    suspend fun getListing(@Path("id") id: String): ListingResource
+    suspend fun getListing(@Path("id") id: String): DataResponse<ListingResource>
 
     @GET("conversations")
     suspend fun getConversations(): PaginatedResponse<ConversationResource>
@@ -70,7 +70,7 @@ interface BizoService {
     suspend fun deleteListing(@Path("id") id: String): Map<String, String>
 
     @PUT("listings/{id}")
-    suspend fun updateListing(@Path("id") id: String, @Body body: ListingRequest): ListingResource
+    suspend fun updateListing(@Path("id") id: String, @Body body: ListingRequest): DataResponse<ListingResource>
 
     @POST("debug-logs")
     suspend fun sendDebugLogs(@Body body: DebugLogsRequest): SendDebugLogsResponse

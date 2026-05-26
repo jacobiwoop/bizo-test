@@ -5,8 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,7 +86,7 @@ class PublishViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val item = bizoService.getListing(id)
+                val item = bizoService.getListing(id).data
                 title = item.title
                 description = item.description
                 price = item.price?.toString() ?: ""
@@ -145,9 +146,15 @@ class PublishViewModel @Inject constructor(
         put("country", "BJ")
         put("city", city)
         put("neighborhood", neighborhood)
-        put("exchange_for", exchangeFor.takeIf { it.isNotBlank() })
-        put("cash_complement", cashComplement.takeIf { it.isNotBlank() })
-        put("price", price.takeIf { it.isNotBlank() })
+        if (type == "VENTE") {
+            put("price", price.takeIf { it.isNotBlank() })
+        }
+        if (type == "TROC" || type == "TROC_CASH") {
+            put("exchange_for", exchangeFor.takeIf { it.isNotBlank() })
+        }
+        if (type == "TROC_CASH") {
+            put("cash_complement", cashComplement.takeIf { it.isNotBlank() })
+        }
 
         return fields
     }
@@ -163,7 +170,7 @@ class PublishViewModel @Inject constructor(
             FileOutputStream(tempFile).use { output -> input.copyTo(output) }
         }
         val requestBody = tempFile.asRequestBody(mimeType.toMediaType())
-        return MultipartBody.Part.createFormData("photos[$index]", tempFile.name, requestBody)
+        return MultipartBody.Part.createFormData("photos[]", tempFile.name, requestBody)
     }
 
     fun submit(context: Context, onSuccess: () -> Unit) {
@@ -206,9 +213,9 @@ class PublishViewModel @Inject constructor(
             type = type,
             condition = condition,
             delivery_mode = deliveryMode,
-            price = parsedPrice,
-            cash_complement = parsedCashComplement,
-            exchange_for = exchangeFor.takeIf { it.isNotBlank() },
+            price = parsedPrice.takeIf { type == "VENTE" },
+            cash_complement = parsedCashComplement.takeIf { type == "TROC_CASH" },
+            exchange_for = exchangeFor.takeIf { (type == "TROC" || type == "TROC_CASH") && it.isNotBlank() },
             city = city,
             neighborhood = neighborhood,
             country = "BJ"
@@ -276,160 +283,218 @@ fun PublishScreen(navController: NavController) {
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                OutlinedTextField(
-                    value = viewModel.title,
-                    onValueChange = { viewModel.title = it },
-                    label = { Text("Titre") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = viewModel.description,
-                    onValueChange = { viewModel.description = it },
-                    label = { Text("Description") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
-                )
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = viewModel.price,
-                        onValueChange = { viewModel.price = it },
-                        label = { Text("Prix (FCFA)") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = viewModel.city,
-                        onValueChange = { viewModel.city = it },
-                        label = { Text("Ville") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                OutlinedTextField(
-                    value = viewModel.neighborhood,
-                    onValueChange = { viewModel.neighborhood = it },
-                    label = { Text("Quartier") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (viewModel.type == "TROC" || viewModel.type == "TROC_CASH") {
-                    OutlinedTextField(
-                        value = viewModel.exchangeFor,
-                        onValueChange = { viewModel.exchangeFor = it },
-                        label = { Text("Recherche en échange") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (viewModel.type == "TROC_CASH") {
-                    OutlinedTextField(
-                        value = viewModel.cashComplement,
-                        onValueChange = { viewModel.cashComplement = it },
-                        label = { Text("Complément cash") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Text("Détails supplémentaires", style = MaterialTheme.typography.titleMedium)
-                
-                PublishDropdown(
-                    label = "Catégorie", 
-                    selected = viewModel.category, 
-                    options = listOf("electronique", "vetements", "vehicules", "maison", "services")
-                ) { viewModel.category = it }
-                
-                PublishDropdown(
-                    label = "Type", 
-                    selected = viewModel.type, 
-                    options = listOf("VENTE", "TROC", "TROC_CASH")
-                ) { viewModel.type = it }
-                
-                PublishDropdown(
-                    label = "État", 
-                    selected = viewModel.condition, 
-                    options = listOf("neuf", "excellent", "bon", "correct")
-                ) { viewModel.condition = it }
-                
-                PublishDropdown(
-                    label = "Mode de livraison", 
-                    selected = viewModel.deliveryMode, 
-                    options = listOf("main_propre", "livraison", "les_deux")
-                ) { viewModel.deliveryMode = it }
-
-                Text("Photos", style = MaterialTheme.typography.titleMedium)
-
-                if (!isEditMode) {
-                    OutlinedButton(
-                        onClick = {
-                            photoPicker.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Ajouter des photos")
+                        Text(
+                            text = if (isEditMode) "Affinez votre annonce" else "Créez une annonce qui donne envie",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isEditMode)
+                                "Mettez à jour le contenu, le type de transaction et la localisation. Les photos existantes restent conservées."
+                            else
+                                "Commencez par les visuels, puis décrivez clairement l'objet et la transaction attendue.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    if (viewModel.selectedPhotoUris.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            viewModel.selectedPhotoUris.forEach { uriString ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(MaterialTheme.shapes.medium)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                }
+
+                PublishSectionCard(
+                    title = "Photos",
+                    subtitle = if (isEditMode) "Les photos actuelles sont affichées ci-dessous." else "Ajoutez entre 1 et 10 images nettes."
+                ) {
+                    if (!isEditMode) {
+                        OutlinedButton(
+                            onClick = {
+                                photoPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Choisir des photos")
+                        }
+                    } else {
+                        Text(
+                            text = "L'édition des photos sera gérée dans une passe dédiée. Pour l'instant, elles sont conservées.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    val visualItems = if (isEditMode) viewModel.existingPhotos else viewModel.selectedPhotoUris
+                    if (visualItems.isNotEmpty()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            visualItems.forEach { value ->
+                                Surface(
+                                    modifier = Modifier.width(104.dp),
+                                    shape = MaterialTheme.shapes.medium,
+                                    tonalElevation = 2.dp
                                 ) {
-                                    AsyncImage(
-                                        model = Uri.parse(uriString),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(72.dp),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = "Photo sélectionnée",
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    IconButton(onClick = { viewModel.removePhoto(uriString) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                                    Column {
+                                        AsyncImage(
+                                            model = if (isEditMode) MediaUrlResolver.resolve(value) else Uri.parse(value),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(96.dp)
+                                                .clip(MaterialTheme.shapes.medium),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        if (!isEditMode) {
+                                            TextButton(
+                                                onClick = { viewModel.removePhoto(value) },
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(Icons.Default.Delete, contentDescription = null)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Retirer")
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                } else {
-                    Text(
-                        text = "Note: L'édition des photos n'est pas encore disponible. Les photos existantes seront conservées.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(top = 8.dp)
+                }
+
+                PublishSectionCard(
+                    title = "Présentation",
+                    subtitle = "Donnez rapidement envie de cliquer et de lire."
+                ) {
+                    OutlinedTextField(
+                        value = viewModel.title,
+                        onValueChange = { viewModel.title = it },
+                        label = { Text("Titre") },
+                        supportingText = { Text("5 à 80 caractères") },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    if (viewModel.existingPhotos.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            viewModel.existingPhotos.forEach { photoUrl ->
-                                AsyncImage(
-                                    model = MediaUrlResolver.resolve(photoUrl),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(160.dp)
-                                        .clip(MaterialTheme.shapes.medium),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
+
+                    OutlinedTextField(
+                        value = viewModel.description,
+                        onValueChange = { viewModel.description = it },
+                        label = { Text("Description") },
+                        supportingText = { Text("20 à 500 caractères") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4
+                    )
+                }
+
+                PublishSectionCard(
+                    title = "Transaction",
+                    subtitle = "Choisissez la logique métier exacte de l'annonce."
+                ) {
+                    Text(
+                        text = "Type de transaction",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        listOf("VENTE", "TROC", "TROC_CASH").forEach { option ->
+                            FilterChip(
+                                selected = viewModel.type == option,
+                                onClick = { viewModel.type = option },
+                                label = { Text(option.replace("_", " ")) }
+                            )
                         }
+                    }
+
+                    if (viewModel.type == "VENTE") {
+                        OutlinedTextField(
+                            value = viewModel.price,
+                            onValueChange = { viewModel.price = it },
+                            label = { Text("Prix (FCFA)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (viewModel.type == "TROC" || viewModel.type == "TROC_CASH") {
+                        OutlinedTextField(
+                            value = viewModel.exchangeFor,
+                            onValueChange = { viewModel.exchangeFor = it },
+                            label = { Text("Je cherche en échange") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (viewModel.type == "TROC_CASH") {
+                        OutlinedTextField(
+                            value = viewModel.cashComplement,
+                            onValueChange = { viewModel.cashComplement = it },
+                            label = { Text("Complément cash") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
 
-                if (error != null) {
-                    Text(
-                        text = error!!,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
+                PublishSectionCard(
+                    title = "Classification",
+                    subtitle = "Ces informations aident le tri, la recherche et les filtres."
+                ) {
+                    PublishDropdown(
+                        label = "Catégorie",
+                        selected = viewModel.category,
+                        options = listOf("electronique", "vetements", "vehicules", "maison", "services")
+                    ) { viewModel.category = it }
+
+                    PublishDropdown(
+                        label = "État",
+                        selected = viewModel.condition,
+                        options = listOf("neuf", "excellent", "bon", "correct")
+                    ) { viewModel.condition = it }
+
+                    PublishDropdown(
+                        label = "Mode de livraison",
+                        selected = viewModel.deliveryMode,
+                        options = listOf("main_propre", "livraison", "les_deux")
+                    ) { viewModel.deliveryMode = it }
+                }
+
+                PublishSectionCard(
+                    title = "Localisation",
+                    subtitle = "Aidez l'acheteur à savoir où la transaction peut se faire."
+                ) {
+                    OutlinedTextField(
+                        value = viewModel.city,
+                        onValueChange = { viewModel.city = it },
+                        label = { Text("Ville") },
+                        modifier = Modifier.fillMaxWidth()
                     )
+
+                    OutlinedTextField(
+                        value = viewModel.neighborhood,
+                        onValueChange = { viewModel.neighborhood = it },
+                        label = { Text("Quartier") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (error != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(
+                            text = error!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -446,6 +511,34 @@ fun PublishScreen(navController: NavController) {
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PublishSectionCard(
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    ElevatedCard {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            content = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                content()
+            }
+        )
     }
 }
 

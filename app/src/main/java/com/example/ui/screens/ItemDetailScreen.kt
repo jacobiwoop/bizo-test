@@ -384,7 +384,7 @@ fun ItemDetailScreen(navController: NavController) {
                             DetailPill("Livraison", item.delivery_mode.replace("_", " "))
                             DetailPill("Vues", item.view_count.toString())
                             DetailPill("Favoris", item.favorite_count.toString())
-                        )
+                        }
                     }
                 }
 

@@ -39,9 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.data.ConversationResource
 import com.example.data.DebugLogger
@@ -51,10 +50,13 @@ import com.example.data.MessageResource
 import com.example.data.RealtimeEvent
 import com.example.data.RealtimeManager
 import com.example.data.SessionManager
-import com.example.data.api.BizoService
 import com.example.ui.components.BizoBottomInputBar
 import com.example.ui.components.BizoScreen
 import com.example.ui.components.BizoStatePane
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,10 +66,13 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class ConversationThreadViewModel(
-    private val bizoService: BizoService,
-    private val convIdInitial: String
+@HiltViewModel
+class ConversationThreadViewModel @Inject constructor(
+    private val bizoService: com.example.data.api.BizoService,
+    private val sessionManager: SessionManager,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    private val convIdInitial: String = checkNotNull(savedStateHandle["id"])
     private val _messages = MutableStateFlow<List<MessageResource>>(emptyList())
     val messages: StateFlow<List<MessageResource>> = _messages
 
@@ -82,6 +87,12 @@ class ConversationThreadViewModel(
 
     private val _onConversationCreated = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val onConversationCreated: SharedFlow<String> = _onConversationCreated
+
+    val routeConversationId: String
+        get() = convIdInitial
+
+    val currentUserId: String?
+        get() = sessionManager.getUserId()
 
     init {
         if (!convIdInitial.startsWith("new_")) {
@@ -192,34 +203,19 @@ class ConversationThreadViewModel(
     }
 }
 
-class ConversationThreadViewModelFactory(
-    private val bizoService: BizoService,
-    private val convId: String
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return ConversationThreadViewModel(bizoService, convId) as T
-    }
-}
-
 @Composable
 fun ConversationThreadScreen(
     navController: NavController,
-    bizoService: BizoService,
-    convId: String,
-    sessionManager: SessionManager,
     realtimeManager: RealtimeManager,
     inboxStore: InboxStateStore
 ) {
-    val viewModel: ConversationThreadViewModel = viewModel(
-        key = convId,
-        factory = ConversationThreadViewModelFactory(bizoService, convId)
-    )
-    val messages by viewModel.messages.collectAsState()
-    val conversation by viewModel.conversation.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val currentConvId by viewModel.currentConvId.collectAsState()
-    val currentUserId = remember { sessionManager.getUserId() }
+    val viewModel: ConversationThreadViewModel = hiltViewModel()
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val conversation by viewModel.conversation.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val currentConvId by viewModel.currentConvId.collectAsStateWithLifecycle()
+    val convId = viewModel.routeConversationId
+    val currentUserId = viewModel.currentUserId
     val listState = rememberLazyListState()
 
     var messageText by remember { mutableStateOf("") }

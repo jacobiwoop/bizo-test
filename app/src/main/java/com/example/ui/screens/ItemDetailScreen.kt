@@ -28,21 +28,26 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
-import com.example.data.api.BizoService
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class ItemDetailViewModel(
-    private val bizoService: BizoService,
-    private val id: String
+@HiltViewModel
+class ItemDetailViewModel @Inject constructor(
+    private val bizoService: com.example.data.api.BizoService,
+    private val sessionManager: SessionManager,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    private val id: String = checkNotNull(savedStateHandle["id"])
     private val _listing = MutableStateFlow<ListingResource?>(null)
     val listing: StateFlow<ListingResource?> = _listing
 
@@ -54,6 +59,9 @@ class ItemDetailViewModel(
 
     private val _isDeleting = MutableStateFlow(false)
     val isDeleting: StateFlow<Boolean> = _isDeleting
+
+    val currentUserId: String?
+        get() = sessionManager.getUserId()
 
     init {
         loadListing()
@@ -125,34 +133,19 @@ class ItemDetailViewModel(
     }
 }
 
-class ItemDetailViewModelFactory(
-    private val bizoService: BizoService,
-    private val id: String
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return ItemDetailViewModel(bizoService, id) as T
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItemDetailScreen(
-    navController: NavController,
-    bizoService: BizoService,
-    id: String,
-    sessionManager: SessionManager
-) {
-    val viewModel: ItemDetailViewModel = viewModel(factory = ItemDetailViewModelFactory(bizoService, id))
-    val listing by viewModel.listing.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val currentUserId = sessionManager.getUserId()
+fun ItemDetailScreen(navController: NavController) {
+    val viewModel: ItemDetailViewModel = hiltViewModel()
+    val listing by viewModel.listing.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val currentUserId = viewModel.currentUserId
     
     var showFullScreenPager by remember { mutableStateOf(false) }
     var selectedPhotoIndex by remember { mutableStateOf(0) }
 
-    val isFavorited by viewModel.isFavorited.collectAsState()
-    val isDeleting by viewModel.isDeleting.collectAsState()
+    val isFavorited by viewModel.isFavorited.collectAsStateWithLifecycle()
+    val isDeleting by viewModel.isDeleting.collectAsStateWithLifecycle()
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
@@ -203,8 +196,9 @@ fun ItemDetailScreen(
                             PrimaryButton(
                                 text = "Modifier",
                                 onClick = { 
-                                    DebugLogger.info(LogCategory.NAV, "Navigation vers édition annonce", "ID: $id")
-                                    navController.navigate("edit_listing/$id")
+                                    val listingId = item.id
+                                    DebugLogger.info(LogCategory.NAV, "Navigation vers édition annonce", "ID: $listingId")
+                                    navController.navigate("edit_listing/$listingId")
                                 },
                                 modifier = Modifier.weight(1f)
                             )

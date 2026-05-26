@@ -110,7 +110,7 @@ fun BizoApp(
                 AuthScreen(navController)
             }
             composable(Screen.Home.route) { 
-                HomeScreen(navController, bizoService) 
+                HomeScreen(navController) 
             }
             composable(Screen.Messages.route) { 
                 MessagesScreen(navController, inboxStore) 
@@ -128,19 +128,16 @@ fun BizoApp(
                 FavoritesScreen(navController, bizoService)
             }
             composable("publish") {
-                PublishScreen(navController, bizoService)
+                PublishScreen(navController)
             }
             composable("edit_listing/{id}") { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("id")
-                PublishScreen(navController, bizoService, id)
+                PublishScreen(navController)
             }
             composable("item_detail/{id}") { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("id")!!
-                ItemDetailScreen(navController, bizoService, id, sessionManager)
+                ItemDetailScreen(navController)
             }
             composable("conversation/{id}") { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("id")!!
-                ConversationThreadScreen(navController, bizoService, id, sessionManager, realtimeManager, inboxStore)
+                ConversationThreadScreen(navController, realtimeManager, inboxStore)
             }
         }
     }

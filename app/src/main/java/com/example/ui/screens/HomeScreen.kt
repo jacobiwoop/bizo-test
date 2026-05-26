@@ -18,18 +18,20 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
-import com.example.data.api.BizoService
 import com.example.ui.components.BizoScreen
 import com.example.ui.components.BizoStatePane
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class HomeViewModel(private val bizoService: BizoService) : ViewModel() {
+@HiltViewModel
+class HomeViewModel @Inject constructor(private val bizoService: com.example.data.api.BizoService) : ViewModel() {
     private val _listings = MutableStateFlow<List<ListingResource>>(emptyList())
     val listings: StateFlow<List<ListingResource>> = _listings
 
@@ -52,20 +54,11 @@ class HomeViewModel(private val bizoService: BizoService) : ViewModel() {
     }
 }
 
-class HomeViewModelFactory(
-    private val bizoService: BizoService
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return HomeViewModel(bizoService) as T
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, bizoService: BizoService) {
-    val viewModel: HomeViewModel = viewModel(factory = HomeViewModelFactory(bizoService))
-    val listings by viewModel.listings.collectAsState()
+fun HomeScreen(navController: NavController) {
+    val viewModel: HomeViewModel = hiltViewModel()
+    val listings by viewModel.listings.collectAsStateWithLifecycle()
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, viewModel) {

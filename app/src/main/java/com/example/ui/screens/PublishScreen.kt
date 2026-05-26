@@ -10,22 +10,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.data.*
-import com.example.data.api.BizoService
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
 import com.example.ui.components.PrimaryButton
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class PublishViewModel(
-    private val bizoService: BizoService,
-    private val listingId: String? = null
+@HiltViewModel
+class PublishViewModel @Inject constructor(
+    private val bizoService: com.example.data.api.BizoService,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    private val listingId: String? = savedStateHandle["id"]
+    val isEditMode: Boolean
+        get() = listingId != null
     var title by mutableStateOf("")
     var description by mutableStateOf("")
     var price by mutableStateOf("")
@@ -128,44 +136,21 @@ class PublishViewModel(
     }
 }
 
-class PublishViewModelFactory(
-    private val bizoService: BizoService,
-    private val listingId: String? = null
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return PublishViewModel(bizoService, listingId) as T
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PublishScreen(
-    navController: NavController,
-    bizoService: BizoService,
-    listingId: String? = null
-) {
-    val viewModel: PublishViewModel = viewModel(factory = PublishViewModelFactory(bizoService, listingId))
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
+fun PublishScreen(navController: NavController) {
+    val viewModel: PublishViewModel = hiltViewModel()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val isEditMode = viewModel.isEditMode
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (listingId != null) "Modifier l'annonce" else "Publier une annonce") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
-                    }
-                }
-            )
-        }
+    BizoScreen(
+        title = if (isEditMode) "Modifier l'annonce" else "Publier une annonce",
+        onBack = { navController.popBackStack() }
     ) { padding ->
-        if (isLoading && listingId != null && viewModel.title.isEmpty()) {
-            Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+        if (isLoading && isEditMode && viewModel.title.isEmpty()) {
+            BizoStatePane("Chargement de l'annonce...", modifier = Modifier.padding(padding), loading = true)
         } else {
             Column(
                 modifier = Modifier
@@ -239,7 +224,7 @@ fun PublishScreen(
                     options = listOf("main_propre", "livraison")
                 ) { viewModel.deliveryMode = it }
 
-                if (listingId != null) {
+                if (isEditMode) {
                     Text(
                         text = "Note: L'édition des photos n'est pas encore disponible. Les photos existantes seront conservées.",
                         style = MaterialTheme.typography.bodySmall,
@@ -259,7 +244,7 @@ fun PublishScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 PrimaryButton(
-                    text = if (listingId != null) "Enregistrer les modifications" else "Publier l'annonce",
+                    text = if (isEditMode) "Enregistrer les modifications" else "Publier l'annonce",
                     onClick = {
                         viewModel.submit {
                             navController.popBackStack()

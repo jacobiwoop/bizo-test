@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +31,7 @@ import com.example.data.*
 import com.example.ui.components.BizoScreen
 import com.example.ui.components.BizoStatePane
 import com.example.ui.components.PrimaryButton
+import com.example.ui.components.SecondaryButton
 import coil.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -116,6 +118,44 @@ class PublishViewModel @Inject constructor(
 
     fun removePhoto(uriString: String) {
         selectedPhotoUris = selectedPhotoUris.filterNot { it == uriString }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    fun validateStep(step: Int): Boolean {
+        _error.value = when (step) {
+            0 -> {
+                if (!isEditMode && selectedPhotoUris.isEmpty()) {
+                    "Ajoutez au moins une photo pour continuer."
+                } else {
+                    null
+                }
+            }
+            1 -> {
+                val parsedPrice = price.toLongOrNull()
+                val parsedCashComplement = cashComplement.toLongOrNull()
+                when {
+                    price.isNotBlank() && parsedPrice == null -> "Le prix doit etre numerique."
+                    cashComplement.isNotBlank() && parsedCashComplement == null -> "Le complément cash doit etre numerique."
+                    type == "VENTE" && parsedPrice == null -> "Le prix est requis pour une vente."
+                    (type == "TROC" || type == "TROC_CASH") && exchangeFor.isBlank() ->
+                        "Precisez ce que vous cherchez en échange."
+                    else -> null
+                }
+            }
+            else -> {
+                when {
+                    title.isBlank() -> "Le titre est obligatoire."
+                    description.isBlank() -> "La description est obligatoire."
+                    city.isBlank() -> "La ville est obligatoire."
+                    else -> null
+                }
+            }
+        }
+
+        return _error.value == null
     }
 
     private fun mapValidationError(exception: HttpException): String {
@@ -262,6 +302,8 @@ fun PublishScreen(navController: NavController) {
     val error by viewModel.error.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val isEditMode = viewModel.isEditMode
+    var currentStep by rememberSaveable { mutableIntStateOf(0) }
+    val steps = listOf("Photos", "Transaction", "Détails")
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
     ) { uris ->
@@ -308,59 +350,66 @@ fun PublishScreen(navController: NavController) {
                     }
                 }
 
-                PublishSectionCard(
-                    title = "Photos",
-                    subtitle = if (isEditMode) "Les photos actuelles sont affichées ci-dessous." else "Ajoutez entre 1 et 10 images nettes."
-                ) {
-                    if (!isEditMode) {
-                        OutlinedButton(
-                            onClick = {
-                                photoPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Choisir des photos")
-                        }
-                    } else {
-                        Text(
-                            text = "L'édition des photos sera gérée dans une passe dédiée. Pour l'instant, elles sont conservées.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                PublishStepHeader(
+                    currentStep = currentStep,
+                    steps = steps
+                )
 
-                    val visualItems = if (isEditMode) viewModel.existingPhotos else viewModel.selectedPhotoUris
-                    if (visualItems.isNotEmpty()) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            visualItems.forEach { value ->
-                                Surface(
-                                    modifier = Modifier.width(104.dp),
-                                    shape = MaterialTheme.shapes.medium,
-                                    tonalElevation = 2.dp
-                                ) {
-                                    Column {
-                                        AsyncImage(
-                                            model = if (isEditMode) MediaUrlResolver.resolve(value) else Uri.parse(value),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(96.dp)
-                                                .clip(MaterialTheme.shapes.medium),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                        if (!isEditMode) {
-                                            TextButton(
-                                                onClick = { viewModel.removePhoto(value) },
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Icon(Icons.Default.Delete, contentDescription = null)
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Retirer")
+                when (currentStep) {
+                    0 -> PublishSectionCard(
+                        title = "Photos",
+                        subtitle = if (isEditMode) "Les photos actuelles sont affichées ci-dessous." else "Ajoutez entre 1 et 10 images nettes."
+                    ) {
+                        if (!isEditMode) {
+                            OutlinedButton(
+                                onClick = {
+                                    photoPicker.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Choisir des photos")
+                            }
+                        } else {
+                            Text(
+                                text = "L'édition des photos sera gérée dans une passe dédiée. Pour l'instant, elles sont conservées.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        val visualItems = if (isEditMode) viewModel.existingPhotos else viewModel.selectedPhotoUris
+                        if (visualItems.isNotEmpty()) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                visualItems.forEach { value ->
+                                    Surface(
+                                        modifier = Modifier.width(104.dp),
+                                        shape = MaterialTheme.shapes.medium,
+                                        tonalElevation = 2.dp
+                                    ) {
+                                        Column {
+                                            AsyncImage(
+                                                model = if (isEditMode) MediaUrlResolver.resolve(value) else Uri.parse(value),
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(96.dp)
+                                                    .clip(MaterialTheme.shapes.medium),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            if (!isEditMode) {
+                                                TextButton(
+                                                    onClick = { viewModel.removePhoto(value) },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Icon(Icons.Default.Delete, contentDescription = null)
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Retirer")
+                                                }
                                             }
                                         }
                                     }
@@ -368,120 +417,150 @@ fun PublishScreen(navController: NavController) {
                             }
                         }
                     }
-                }
 
-                PublishSectionCard(
-                    title = "Présentation",
-                    subtitle = "Donnez rapidement envie de cliquer et de lire."
-                ) {
-                    OutlinedTextField(
-                        value = viewModel.title,
-                        onValueChange = { viewModel.title = it },
-                        label = { Text("Titre") },
-                        supportingText = { Text("5 à 80 caractères") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = viewModel.description,
-                        onValueChange = { viewModel.description = it },
-                        label = { Text("Description") },
-                        supportingText = { Text("20 à 500 caractères") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 4
-                    )
-                }
-
-                PublishSectionCard(
-                    title = "Transaction",
-                    subtitle = "Choisissez la logique métier exacte de l'annonce."
-                ) {
-                    Text(
-                        text = "Type de transaction",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    1 -> PublishSectionCard(
+                        title = "Transaction",
+                        subtitle = "Choisissez la logique métier exacte de l'annonce."
                     ) {
-                        listOf("VENTE", "TROC", "TROC_CASH").forEach { option ->
-                            FilterChip(
-                                selected = viewModel.type == option,
-                                onClick = { viewModel.type = option },
-                                label = { Text(option.replace("_", " ")) }
+                        Text(
+                            text = "Type de transaction",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            listOf("VENTE", "TROC", "TROC_CASH").forEach { option ->
+                                FilterChip(
+                                    selected = viewModel.type == option,
+                                    onClick = {
+                                        viewModel.type = option
+                                        viewModel.clearError()
+                                    },
+                                    label = { Text(option.replace("_", " ")) }
+                                )
+                            }
+                        }
+
+                        if (viewModel.type == "VENTE") {
+                            OutlinedTextField(
+                                value = viewModel.price,
+                                onValueChange = { viewModel.price = it },
+                                label = { Text("Prix (FCFA)") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        if (viewModel.type == "TROC" || viewModel.type == "TROC_CASH") {
+                            OutlinedTextField(
+                                value = viewModel.exchangeFor,
+                                onValueChange = { viewModel.exchangeFor = it },
+                                label = { Text("Je cherche en échange") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        if (viewModel.type == "TROC_CASH") {
+                            OutlinedTextField(
+                                value = viewModel.cashComplement,
+                                onValueChange = { viewModel.cashComplement = it },
+                                label = { Text("Complément cash") },
+                                supportingText = { Text("Optionnel selon l'accord souhaité") },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
 
-                    if (viewModel.type == "VENTE") {
-                        OutlinedTextField(
-                            value = viewModel.price,
-                            onValueChange = { viewModel.price = it },
-                            label = { Text("Prix (FCFA)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    else -> {
+                        PublishSectionCard(
+                            title = "Présentation",
+                            subtitle = "Donnez rapidement envie de cliquer et de lire."
+                        ) {
+                            OutlinedTextField(
+                                value = viewModel.title,
+                                onValueChange = { viewModel.title = it },
+                                label = { Text("Titre") },
+                                supportingText = { Text("5 à 80 caractères") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = viewModel.description,
+                                onValueChange = { viewModel.description = it },
+                                label = { Text("Description") },
+                                supportingText = { Text("20 à 500 caractères") },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 4
+                            )
+                        }
+
+                        PublishSectionCard(
+                            title = "Classification",
+                            subtitle = "Ces informations aident le tri, la recherche et les filtres."
+                        ) {
+                            PublishDropdown(
+                                label = "Catégorie",
+                                selected = viewModel.category,
+                                options = listOf("electronique", "vetements", "vehicules", "maison", "services")
+                            ) { viewModel.category = it }
+
+                            PublishDropdown(
+                                label = "État",
+                                selected = viewModel.condition,
+                                options = listOf("neuf", "excellent", "bon", "correct")
+                            ) { viewModel.condition = it }
+
+                            PublishDropdown(
+                                label = "Mode de livraison",
+                                selected = viewModel.deliveryMode,
+                                options = listOf("main_propre", "livraison", "les_deux")
+                            ) { viewModel.deliveryMode = it }
+                        }
+
+                        PublishSectionCard(
+                            title = "Localisation",
+                            subtitle = "Aidez l'acheteur à savoir où la transaction peut se faire."
+                        ) {
+                            OutlinedTextField(
+                                value = viewModel.city,
+                                onValueChange = { viewModel.city = it },
+                                label = { Text("Ville") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = viewModel.neighborhood,
+                                onValueChange = { viewModel.neighborhood = it },
+                                label = { Text("Quartier") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        PublishSectionCard(
+                            title = "Résumé",
+                            subtitle = "Vérifiez l'essentiel avant publication."
+                        ) {
+                            DetailSummaryRow("Photos", if (isEditMode) "${viewModel.existingPhotos.size}" else "${viewModel.selectedPhotoUris.size}")
+                            DetailSummaryRow("Type", viewModel.type.replace("_", " "))
+                            DetailSummaryRow(
+                                "Valeur",
+                                when (viewModel.type) {
+                                    "VENTE" -> if (viewModel.price.isBlank()) "Prix à renseigner" else "${viewModel.price} FCFA"
+                                    "TROC_CASH" -> buildString {
+                                        append(viewModel.exchangeFor.ifBlank { "Échange à préciser" })
+                                        if (viewModel.cashComplement.isNotBlank()) {
+                                            append(" + ")
+                                            append(viewModel.cashComplement)
+                                            append(" FCFA")
+                                        }
+                                    }
+                                    else -> viewModel.exchangeFor.ifBlank { "Échange à préciser" }
+                                }
+                            )
+                            DetailSummaryRow("Ville", viewModel.city.ifBlank { "À renseigner" })
+                        }
                     }
-
-                    if (viewModel.type == "TROC" || viewModel.type == "TROC_CASH") {
-                        OutlinedTextField(
-                            value = viewModel.exchangeFor,
-                            onValueChange = { viewModel.exchangeFor = it },
-                            label = { Text("Je cherche en échange") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    if (viewModel.type == "TROC_CASH") {
-                        OutlinedTextField(
-                            value = viewModel.cashComplement,
-                            onValueChange = { viewModel.cashComplement = it },
-                            label = { Text("Complément cash") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
-                PublishSectionCard(
-                    title = "Classification",
-                    subtitle = "Ces informations aident le tri, la recherche et les filtres."
-                ) {
-                    PublishDropdown(
-                        label = "Catégorie",
-                        selected = viewModel.category,
-                        options = listOf("electronique", "vetements", "vehicules", "maison", "services")
-                    ) { viewModel.category = it }
-
-                    PublishDropdown(
-                        label = "État",
-                        selected = viewModel.condition,
-                        options = listOf("neuf", "excellent", "bon", "correct")
-                    ) { viewModel.condition = it }
-
-                    PublishDropdown(
-                        label = "Mode de livraison",
-                        selected = viewModel.deliveryMode,
-                        options = listOf("main_propre", "livraison", "les_deux")
-                    ) { viewModel.deliveryMode = it }
-                }
-
-                PublishSectionCard(
-                    title = "Localisation",
-                    subtitle = "Aidez l'acheteur à savoir où la transaction peut se faire."
-                ) {
-                    OutlinedTextField(
-                        value = viewModel.city,
-                        onValueChange = { viewModel.city = it },
-                        label = { Text("Ville") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = viewModel.neighborhood,
-                        onValueChange = { viewModel.neighborhood = it },
-                        label = { Text("Quartier") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
 
                 if (error != null) {
@@ -500,16 +579,97 @@ fun PublishScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                PrimaryButton(
-                    text = if (isEditMode) "Enregistrer les modifications" else "Publier l'annonce",
-                    onClick = {
-                        viewModel.submit(context) {
-                            navController.popBackStack()
-                        }
-                    },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    isLoading = isLoading
-                )
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (currentStep > 0) {
+                        SecondaryButton(
+                            text = "Retour",
+                            onClick = {
+                                viewModel.clearError()
+                                currentStep -= 1
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    PrimaryButton(
+                        text = when {
+                            currentStep < steps.lastIndex -> "Continuer"
+                            isEditMode -> "Enregistrer les modifications"
+                            else -> "Publier l'annonce"
+                        },
+                        onClick = {
+                            if (currentStep < steps.lastIndex) {
+                                if (viewModel.validateStep(currentStep)) {
+                                    currentStep += 1
+                                }
+                            } else {
+                                viewModel.submit(context) {
+                                    navController.popBackStack()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        isLoading = isLoading
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PublishStepHeader(
+    currentStep: Int,
+    steps: List<String>
+) {
+    ElevatedCard {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "Étape ${currentStep + 1} sur ${steps.size}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                steps.forEachIndexed { index, label ->
+                    val active = index == currentStep
+                    val completed = index < currentStep
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        color = when {
+                            active -> MaterialTheme.colorScheme.primary
+                            completed -> MaterialTheme.colorScheme.secondaryContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = if (completed) "OK" else "${index + 1}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -539,6 +699,25 @@ private fun PublishSectionCard(
                 )
                 content()
             }
+        )
+    }
+}
+
+@Composable
+private fun DetailSummaryRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

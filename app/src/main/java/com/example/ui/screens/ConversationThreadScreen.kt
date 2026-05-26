@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,17 +37,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -69,7 +64,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -231,9 +225,6 @@ fun ConversationThreadScreen(
     val currentConvId by viewModel.currentConvId.collectAsState()
     val currentUserId = remember { sessionManager.getUserId() }
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
-    val imeBottom = WindowInsets.ime.getBottom(density)
 
     var messageText by remember { mutableStateOf("") }
 
@@ -277,13 +268,6 @@ fun ConversationThreadScreen(
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.scrollToItem(messages.lastIndex)
-        }
-    }
-
-    LaunchedEffect(imeBottom) {
-        if (imeBottom > 0 && messages.isNotEmpty()) {
-            delay(120)
             listState.scrollToItem(messages.lastIndex)
         }
     }
@@ -375,16 +359,7 @@ fun ConversationThreadScreen(
                         TextField(
                             value = messageText,
                             onValueChange = { messageText = it },
-                            modifier = Modifier
-                                .weight(1f)
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused && messages.isNotEmpty()) {
-                                        scope.launch {
-                                            delay(120)
-                                            listState.scrollToItem(messages.lastIndex)
-                                        }
-                                    }
-                                },
+                            modifier = Modifier.weight(1f),
                             placeholder = { Text("Votre message...") },
                             colors = TextFieldDefaults.colors(
                                 unfocusedContainerColor = Color.Transparent,

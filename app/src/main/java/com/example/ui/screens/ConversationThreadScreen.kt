@@ -17,19 +17,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +52,9 @@ import com.example.data.RealtimeEvent
 import com.example.data.RealtimeManager
 import com.example.data.SessionManager
 import com.example.data.api.BizoService
+import com.example.ui.components.BizoBottomInputBar
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -205,7 +202,6 @@ class ConversationThreadViewModelFactory(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationThreadScreen(
     navController: NavController,
@@ -272,42 +268,17 @@ fun ConversationThreadScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = conversation?.other_user?.display_name ?: "Conversation",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        conversation?.let {
-                            Text(
-                                text = it.listing_title,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null)
-                    }
-                }
-            )
-        }
+    BizoScreen(
+        title = conversation?.other_user?.display_name ?: "Conversation",
+        subtitle = conversation?.listing_title,
+        onBack = { navController.popBackStack() }
     ) { padding ->
         if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            BizoStatePane(
+                text = "Chargement...",
+                modifier = Modifier.padding(padding),
+                loading = true
+            )
         } else {
             Column(
                 modifier = Modifier
@@ -344,42 +315,17 @@ fun ConversationThreadScreen(
                     }
                 }
 
-                Surface(
-                    tonalElevation = 2.dp,
-                    modifier = Modifier
-                        .navigationBarsPadding()
-                        .imePadding()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextField(
-                            value = messageText,
-                            onValueChange = { messageText = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Votre message...") },
-                            colors = TextFieldDefaults.colors(
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedContainerColor = Color.Transparent
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
-                                val trimmed = messageText.trim()
-                                if (trimmed.isNotEmpty()) {
-                                    viewModel.sendMessage(trimmed)
-                                    messageText = ""
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.Send, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                BizoBottomInputBar(
+                    value = messageText,
+                    onValueChange = { messageText = it },
+                    onSend = {
+                        val trimmed = messageText.trim()
+                        if (trimmed.isNotEmpty()) {
+                            viewModel.sendMessage(trimmed)
+                            messageText = ""
                         }
                     }
-                }
+                )
             }
         }
     }

@@ -135,9 +135,7 @@ fun FavoriteItemView(favorite: FavoriteResource, onClick: () -> Unit, onRemove: 
     ) {
         Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             val photoUrl = favorite.listing_photo
-            val fullUrl = if (photoUrl != null) {
-                if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
-            } else null
+            val fullUrl = MediaUrlResolver.resolve(photoUrl)
 
             AsyncImage(
                 model = fullUrl,

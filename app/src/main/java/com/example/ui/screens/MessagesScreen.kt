@@ -17,13 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,10 +39,12 @@ import com.example.data.ConversationResource
 import com.example.data.DebugLogger
 import com.example.data.InboxStateStore
 import com.example.data.LogCategory
+import com.example.data.MediaUrlResolver
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     navController: NavController,
@@ -60,25 +59,12 @@ fun MessagesScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Messages", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
-            )
-        }
-    ) { padding ->
+    BizoScreen(title = "Messages") { padding ->
         if (conversations.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Aucune conversation pour le moment.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            BizoStatePane(
+                text = "Aucune conversation pour le moment.",
+                modifier = Modifier.padding(padding)
+            )
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -122,9 +108,8 @@ fun ConversationItem(conversation: ConversationResource, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             if (photoUrl != null) {
-                val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
                 AsyncImage(
-                    model = fullUrl,
+                    model = MediaUrlResolver.resolve(photoUrl),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop

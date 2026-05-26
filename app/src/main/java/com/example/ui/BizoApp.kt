@@ -7,36 +7,38 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.data.InboxStateStore
-import com.example.data.RealtimeEvent
-import com.example.data.RealtimeManager
 import com.example.data.SessionManager
 import com.example.data.api.BizoService
+import com.example.data.InboxStateStore
+import com.example.data.RealtimeManager
+import com.example.ui.components.BizoScreen
 import com.example.ui.screens.*
-import kotlinx.coroutines.flow.collect
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun BizoApp() {
+fun BizoApp(
+    sessionManager: SessionManager,
+    bizoService: BizoService,
+    realtimeManager: RealtimeManager,
+    inboxStore: InboxStateStore
+) {
     val navController = rememberNavController()
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
-    val bizoService = remember { BizoService.create(sessionManager) }
-    val realtimeManager = remember { RealtimeManager(sessionManager) }
-    val inboxStore = remember { InboxStateStore(bizoService) }
+    val shellViewModel: AppShellViewModel = hiltViewModel()
     
     val items = listOf(
         Screen.Home,
@@ -45,33 +47,12 @@ fun BizoApp() {
     )
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val authToken by sessionManager.authToken.collectAsState()
-    val userId by sessionManager.userId.collectAsState()
-    val inboxConversations by inboxStore.conversations.collectAsState()
-    val unreadCount = inboxConversations.sumOf { it.unread_count }
+    val shellState by shellViewModel.state.collectAsStateWithLifecycle()
     val showBottomBar = items.any { it.route == currentDestination?.route }
 
-    LaunchedEffect(userId) {
-        if (userId != null) {
-            inboxStore.refresh()
-            realtimeManager.subscribeToInbox(userId!!)
-        } else {
-            inboxStore.clear()
-            realtimeManager.unsubscribeFromInbox()
-        }
-    }
-
-    LaunchedEffect(realtimeManager) {
-        realtimeManager.events.collect { event ->
-            if (event is RealtimeEvent.ConversationSummaryUpdated) {
-                inboxStore.upsertConversation(event.conversation)
-            }
-        }
-    }
-
-    LaunchedEffect(authToken, currentDestination?.route) {
+    LaunchedEffect(shellState.authToken, currentDestination?.route) {
         val route = currentDestination?.route
-        if (authToken == null && route != null && route !in listOf("splash", "auth")) {
+        if (shellState.authToken == null && route != null && route !in listOf("splash", "auth")) {
             navController.navigate("auth") {
                 popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                 launchSingleTop = true
@@ -79,18 +60,18 @@ fun BizoApp() {
         }
     }
 
-    Scaffold(
+    BizoScreen(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+                NavigationBar {
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = {
-                                if (screen.route == Screen.Messages.route && unreadCount > 0) {
+                                if (screen.route == Screen.Messages.route && shellState.unreadCount > 0) {
                                     BadgedBox(
                                         badge = {
                                             Badge {
-                                                Text(if (unreadCount > 99) "99+" else unreadCount.toString())
+                                                Text(if (shellState.unreadCount > 99) "99+" else shellState.unreadCount.toString())
                                             }
                                         }
                                     ) {
@@ -120,9 +101,7 @@ fun BizoApp() {
         NavHost(
             navController = navController,
             startDestination = "splash",
-            modifier = Modifier.padding(
-                bottom = innerPadding.calculateBottomPadding()
-            )
+            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
         ) {
             composable("splash") {
                 SplashScreen(navController, sessionManager)

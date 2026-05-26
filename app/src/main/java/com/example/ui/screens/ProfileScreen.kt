@@ -103,8 +103,7 @@ fun ProfileScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     if (avatarUrl != null) {
-                        val fullUrl = if (avatarUrl.startsWith("http")) avatarUrl else "https://bizo.aiko.qzz.io$avatarUrl"
-                        AsyncImage(fullUrl, null, contentScale = ContentScale.Crop)
+                        AsyncImage(MediaUrlResolver.resolve(avatarUrl), null, contentScale = ContentScale.Crop)
                     } else {
                         Text(user?.display_name?.take(1) ?: "?", style = MaterialTheme.typography.displayMedium)
                     }

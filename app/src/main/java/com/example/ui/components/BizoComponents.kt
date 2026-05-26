@@ -13,6 +13,7 @@ import com.example.ui.theme.White
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.example.data.ListingResource
+import com.example.data.MediaUrlResolver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
@@ -85,9 +86,7 @@ fun ListingItem(listing: ListingResource, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             val photoUrl = listing.photos.firstOrNull()
-            val fullUrl = if (photoUrl != null) {
-                if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
-            } else null
+            val fullUrl = MediaUrlResolver.resolve(photoUrl)
 
             AsyncImage(
                 model = fullUrl,

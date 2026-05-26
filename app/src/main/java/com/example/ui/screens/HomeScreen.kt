@@ -19,6 +19,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.data.*
 import com.example.data.api.BizoService
+import com.example.ui.components.BizoScreen
+import com.example.ui.components.BizoStatePane
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -76,12 +78,8 @@ fun HomeScreen(navController: NavController, bizoService: BizoService) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Bizo", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
-            )
-        },
+    BizoScreen(
+        title = "Bizo",
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate("publish") },
@@ -93,14 +91,10 @@ fun HomeScreen(navController: NavController, bizoService: BizoService) {
         }
     ) { padding ->
         if (listings.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Aucune annonce disponible pour le moment.")
-            }
+            BizoStatePane(
+                text = "Aucune annonce disponible pour le moment.",
+                modifier = Modifier.padding(padding)
+            )
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -135,7 +129,7 @@ fun ListingCard(listing: ListingResource, onClick: () -> Unit) {
         Column {
             val photoUrl = listing.photos.firstOrNull()
             if (photoUrl != null) {
-                val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
+                val fullUrl = MediaUrlResolver.resolve(photoUrl)
                 AsyncImage(
                     model = fullUrl,
                     contentDescription = null,

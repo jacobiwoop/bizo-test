@@ -246,9 +246,8 @@ fun ItemDetailScreen(
                             modifier = Modifier.fillMaxSize()
                         ) { index ->
                             val photoUrl = photos[index]
-                            val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
                             AsyncImage(
-                                model = fullUrl,
+                                model = MediaUrlResolver.resolve(photoUrl),
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize().clickable {
                                     selectedPhotoIndex = index
@@ -325,8 +324,7 @@ fun ItemDetailScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (avatarUrl != null) {
-                                        val fullAvatarUrl = if (avatarUrl.startsWith("http")) avatarUrl else "https://bizo.aiko.qzz.io$avatarUrl"
-                                        AsyncImage(fullAvatarUrl, null, contentScale = ContentScale.Crop)
+                                        AsyncImage(MediaUrlResolver.resolve(avatarUrl), null, contentScale = ContentScale.Crop)
                                     } else {
                                         Text(owner.display_name.take(1))
                                     }
@@ -413,9 +411,8 @@ fun ItemDetailScreen(
                 Box(modifier = Modifier.fillMaxSize()) {
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { index ->
                         val photoUrl = photos[index]
-                        val fullUrl = if (photoUrl.startsWith("http")) photoUrl else "https://bizo.aiko.qzz.io$photoUrl"
                         AsyncImage(
-                            model = fullUrl,
+                            model = MediaUrlResolver.resolve(photoUrl),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit

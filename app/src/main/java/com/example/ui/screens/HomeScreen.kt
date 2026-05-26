@@ -100,11 +100,12 @@ fun HomeScreen(navController: NavController) {
                 items(listings) { listing ->
                     BizoListingCard(
                         listing = listing,
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        DebugLogger.info(LogCategory.NAV, "Ouverture détail annonce", "ID: ${listing.id}, Title: ${listing.title}")
-                        navController.navigate("item_detail/${listing.id}")
-                    }
+                        modifier = Modifier.padding(8.dp),
+                        onClick = {
+                            DebugLogger.info(LogCategory.NAV, "Ouverture détail annonce", "ID: ${listing.id}, Title: ${listing.title}")
+                            navController.navigate("item_detail/${listing.id}")
+                        }
+                    )
                 }
             }
         }

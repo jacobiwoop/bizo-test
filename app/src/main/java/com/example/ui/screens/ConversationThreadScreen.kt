@@ -361,7 +361,9 @@ fun ConversationThreadScreen(
 
                 Surface(
                     tonalElevation = 2.dp,
-                    modifier = Modifier.navigationBarsPadding()
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .imePadding()
                 ) {
                     Row(
                         modifier = Modifier

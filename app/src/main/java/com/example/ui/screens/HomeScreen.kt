@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -10,14 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.data.*
+import com.example.ui.components.BizoListingCard
 import com.example.ui.components.BizoScreen
 import com.example.ui.components.BizoStatePane
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -73,6 +70,7 @@ fun HomeScreen(navController: NavController) {
 
     BizoScreen(
         title = "Bizo",
+        subtitle = "Annonces locales, vente et troc",
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate("publish") },
@@ -100,46 +98,14 @@ fun HomeScreen(navController: NavController) {
                 modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())
             ) {
                 items(listings) { listing ->
-                    ListingCard(listing) {
+                    BizoListingCard(
+                        listing = listing,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
                         DebugLogger.info(LogCategory.NAV, "Ouverture détail annonce", "ID: ${listing.id}, Title: ${listing.title}")
                         navController.navigate("item_detail/${listing.id}")
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun ListingCard(listing: ListingResource, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .padding(8.dp)
-            .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            val photoUrl = listing.photos.firstOrNull()
-            if (photoUrl != null) {
-                val fullUrl = MediaUrlResolver.resolve(photoUrl)
-                AsyncImage(
-                    model = fullUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text(text = listing.title, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(
-                    text = "${listing.price ?: 0} FCFA",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(text = listing.city, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

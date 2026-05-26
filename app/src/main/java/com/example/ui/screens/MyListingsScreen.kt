@@ -1,20 +1,15 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.data.*
 import com.example.data.api.BizoService
-import com.example.ui.components.ListingItem
+import com.example.ui.components.BizoListingCard
 import com.example.ui.components.BizoScreen
 import com.example.ui.components.BizoStatePane
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,7 +63,11 @@ fun MyListingsScreen(navController: NavController, bizoService: BizoService) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
-    BizoScreen(title = "Mes annonces", onBack = { navController.popBackStack() }) { padding ->
+    BizoScreen(
+        title = "Mes annonces",
+        subtitle = "Gérez vos publications actives",
+        onBack = { navController.popBackStack() }
+    ) { padding ->
         if (isLoading) {
             BizoStatePane("Chargement...", modifier = Modifier.padding(padding), loading = true)
         } else if (error != null && listings.isEmpty()) {
@@ -82,11 +81,10 @@ fun MyListingsScreen(navController: NavController, bizoService: BizoService) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(listings) { listing ->
-                    ListingItem(
+                    BizoListingCard(
                         listing = listing,
-                        onClick = {
-                            navController.navigate("item_detail/${listing.id}")
-                        }
+                        showOwnerBadge = false,
+                        onClick = { navController.navigate("item_detail/${listing.id}") }
                     )
                 }
             }

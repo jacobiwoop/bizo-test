@@ -5,28 +5,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.data.*
 import com.example.data.api.BizoService
+import com.example.ui.components.BizoListingCard
 import com.example.ui.components.BizoScreen
 import com.example.ui.components.BizoStatePane
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -94,7 +87,11 @@ fun FavoritesScreen(navController: NavController, bizoService: BizoService) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
-    BizoScreen(title = "Mes favoris", onBack = { navController.popBackStack() }) { padding ->
+    BizoScreen(
+        title = "Mes favoris",
+        subtitle = "Retrouvez vite ce que vous suivez",
+        onBack = { navController.popBackStack() }
+    ) { padding ->
         if (isLoading) {
             BizoStatePane("Chargement...", modifier = Modifier.padding(padding), loading = true)
         } else if (error != null && favorites.isEmpty()) {
@@ -131,40 +128,47 @@ fun FavoritesScreen(navController: NavController, bizoService: BizoService) {
 
 @Composable
 fun FavoriteItemView(favorite: FavoriteResource, onClick: () -> Unit, onRemove: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            val photoUrl = favorite.listing_photo
-            val fullUrl = MediaUrlResolver.resolve(photoUrl)
-
-            AsyncImage(
-                model = fullUrl,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray),
-                contentScale = ContentScale.Crop
-            )
-            
-            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(
-                    text = favorite.listing_title ?: "Annonce sans titre",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2
-                )
-                Text(
-                    text = "Ajouté le ${favorite.created_at.split("T").first()}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-            }
-            
+    Box {
+        BizoListingCard(
+            listing = favorite.asListingPreview(),
+            onClick = onClick
+        )
+        Surface(
+            modifier = Modifier
+                .padding(12.dp),
+            color = MaterialTheme.colorScheme.errorContainer,
+            shape = MaterialTheme.shapes.medium
+        ) {
             IconButton(onClick = onRemove) {
-                Icon(Icons.Filled.Delete, contentDescription = "Retirer", tint = Color.Red)
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Retirer",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
             }
         }
     }
 }
+
+private fun FavoriteResource.asListingPreview(): ListingResource = ListingResource(
+    id = listing_id,
+    title = listing_title ?: "Annonce sans titre",
+    description = "",
+    type = "VENTE",
+    price = null,
+    cash_complement = null,
+    exchange_for = null,
+    category = "favori",
+    condition = "enregistré",
+    delivery_mode = "suivi",
+    photos = listOfNotNull(listing_photo),
+    country = "BJ",
+    city = created_at.split("T").firstOrNull() ?: "",
+    neighborhood = "Ajouté aux favoris",
+    view_count = 0,
+    favorite_count = 0,
+    status = "active",
+    is_boosted = false,
+    owner = null,
+    created_at = created_at
+)

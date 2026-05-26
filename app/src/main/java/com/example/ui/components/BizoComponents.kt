@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @Composable
 fun PrimaryButton(
@@ -76,44 +79,140 @@ fun SecondaryButton(
 
 @Composable
 fun ListingItem(listing: ListingResource, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    BizoListingCard(listing = listing, onClick = onClick)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun BizoListingCard(
+    listing: ListingResource,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showOwnerBadge: Boolean = false
+) {
+    ElevatedCard(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
     ) {
-        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            val photoUrl = listing.photos.firstOrNull()
-            val fullUrl = MediaUrlResolver.resolve(photoUrl)
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(170.dp)
+            ) {
+                AsyncImage(
+                    model = MediaUrlResolver.resolve(listing.photos.firstOrNull()),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
 
-            AsyncImage(
-                model = fullUrl,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+                Surface(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .align(Alignment.TopStart),
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                ) {
+                    Text(
+                        text = listing.type.replace("_", " "),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                if (showOwnerBadge && listing.owner != null) {
+                    Surface(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .align(Alignment.TopEnd),
+                        shape = RoundedCornerShape(999.dp),
+                        color = Black.copy(alpha = 0.65f)
+                    ) {
+                        Text(
+                            text = listing.owner.display_name,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = White
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomStart)
+                        .background(Color.Black.copy(alpha = 0.18f))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = listingPriceText(listing),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = White
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text(
                     text = listing.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 2
                 )
+
                 Text(
-                    text = "${listing.price ?: 0} FCFA",
+                    text = "${listing.city}${if (listing.neighborhood != null) " • ${listing.neighborhood}" else ""}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = "${listing.city}${if (listing.neighborhood != null) " - ${listing.neighborhood}" else ""}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
-                )
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ListingMetaPill(listing.category)
+                    ListingMetaPill(listing.condition)
+                    ListingMetaPill(listing.delivery_mode)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ListingMetaPill(value: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Text(
+            text = value.replace("_", " ").replaceFirstChar { it.uppercase() },
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun listingPriceText(listing: ListingResource): String {
+    return when (listing.type) {
+        "VENTE" -> "${listing.price ?: 0} FCFA"
+        "TROC_CASH" -> buildString {
+            append("Troc")
+            listing.cash_complement?.let {
+                append(" + ")
+                append(it)
+                append(" FCFA")
+            }
+        }
+        else -> "Troc"
     }
 }

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,20 +24,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Apartment
-import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Handyman
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -46,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,11 +103,11 @@ private data class HomeCategory(
 )
 
 private val homeCategories = listOf(
-    HomeCategory("vehicules", "Vehicules", Icons.Default.DirectionsCar),
-    HomeCategory("maison", "Maison", Icons.Default.Apartment),
-    HomeCategory("electronique", "Electronique", Icons.Default.Devices),
-    HomeCategory("vetements", "Mode", Icons.Default.Checkroom),
-    HomeCategory("services", "Services", Icons.Default.Handyman),
+    HomeCategory("vehicules", "Vehicules", Icons.Default.LocationOn),
+    HomeCategory("maison", "Maison", Icons.Default.Home),
+    HomeCategory("electronique", "Electronique", Icons.Default.Search),
+    HomeCategory("vetements", "Mode", Icons.Default.Person),
+    HomeCategory("services", "Services", Icons.Default.Email),
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -313,7 +307,7 @@ private fun HomeHeroSection(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     HeaderCircleButton(icon = Icons.Default.FavoriteBorder, onClick = onFavorites)
-                    HeaderCircleButton(icon = Icons.Default.MoreHoriz, onClick = onMessages)
+                    HeaderCircleButton(icon = Icons.Default.Email, onClick = onMessages)
                 }
             }
 

@@ -24,8 +24,9 @@ fun SplashScreen(navController: NavController, sessionManager: SessionManager) {
                 popUpTo("splash") { inclusive = true }
             }
         } else {
-            DebugLogger.warn(LogCategory.AUTH, "Aucune session active", "Redirection vers Login")
-            navController.navigate("auth") {
+            val nextRoute = if (sessionManager.hasSeenOnboarding()) "sign_in" else "onboarding"
+            DebugLogger.warn(LogCategory.AUTH, "Aucune session active", "Redirection vers $nextRoute")
+            navController.navigate(nextRoute) {
                 popUpTo("splash") { inclusive = true }
             }
         }

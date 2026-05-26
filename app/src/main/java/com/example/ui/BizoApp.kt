@@ -52,7 +52,16 @@ fun BizoApp(
 
     LaunchedEffect(shellState.authToken, currentDestination?.route) {
         val route = currentDestination?.route
-        if (shellState.authToken == null && route != null && route !in listOf("splash", "auth")) {
+        if (shellState.authToken == null && route != null && route !in listOf(
+                "splash",
+                "auth",
+                "onboarding",
+                "sign_in",
+                "register",
+                "forgot_password",
+                "create_new_password"
+            )
+        ) {
             navController.navigate("auth") {
                 popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                 launchSingleTop = true
@@ -107,7 +116,22 @@ fun BizoApp(
                 SplashScreen(navController, sessionManager)
             }
             composable("auth") {
-                AuthScreen(navController)
+                SignInScreen(navController)
+            }
+            composable("onboarding") {
+                OnboardingScreen(navController, sessionManager)
+            }
+            composable("sign_in") {
+                SignInScreen(navController)
+            }
+            composable("register") {
+                RegisterScreen(navController)
+            }
+            composable("forgot_password") {
+                ForgotPasswordScreen(navController)
+            }
+            composable("create_new_password") {
+                CreateNewPasswordScreen(navController)
             }
             composable(Screen.Home.route) { 
                 HomeScreen(navController) 

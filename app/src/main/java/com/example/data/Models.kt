@@ -124,6 +124,11 @@ data class AuthResponse(
 )
 
 @Serializable
+data class MessageResponse(
+    val message: String
+)
+
+@Serializable
 data class RealtimeMessageCreatedPayload(
     val message: MessageResource
 )

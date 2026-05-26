@@ -18,6 +18,12 @@ interface BizoService {
     @POST("auth/register")
     suspend fun register(@Body body: Map<String, String>): AuthResponse
 
+    @POST("auth/password/reset")
+    suspend fun requestPasswordReset(@Body body: Map<String, String>): MessageResponse
+
+    @POST("auth/password/update")
+    suspend fun updatePassword(@Body body: Map<String, String>): MessageResponse
+
     @POST("auth/logout")
     suspend fun logout(): Map<String, String>
 

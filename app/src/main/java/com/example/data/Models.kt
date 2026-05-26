@@ -104,10 +104,17 @@ data class ListingRequest(
     val condition: String,
     val delivery_mode: String,
     val price: Long? = null,
-    val photos: List<String> = emptyList(),
+    val cash_complement: Long? = null,
+    val exchange_for: String? = null,
     val city: String,
     val neighborhood: String? = null,
     val country: String = "BJ"
+)
+
+@Serializable
+data class ValidationErrorResponse(
+    val message: String? = null,
+    val errors: Map<String, List<String>> = emptyMap()
 )
 
 @Serializable

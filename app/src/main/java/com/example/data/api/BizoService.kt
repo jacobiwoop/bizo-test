@@ -2,6 +2,8 @@ package com.example.data.api
 
 import com.example.data.*
 import okhttp3.OkHttpClient
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.http.*
@@ -32,7 +34,7 @@ interface BizoService {
     suspend fun getListings(@Query("category") category: String? = null): PaginatedResponse<ListingResource>
 
     @GET("listings/{id}")
-    suspend fun getListing(@Path("id") id: String): DataResponse<ListingResource>
+    suspend fun getListing(@Path("id") id: String): ListingResource
 
     @GET("conversations")
     suspend fun getConversations(): PaginatedResponse<ConversationResource>
@@ -57,14 +59,18 @@ interface BizoService {
         @Body body: Map<String, String>
     ): CreateConversationResponse
 
+    @Multipart
     @POST("listings")
-    suspend fun createListing(@Body body: ListingRequest): DataResponse<ListingResource>
+    suspend fun createListing(
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part photos: List<MultipartBody.Part>
+    ): DataResponse<ListingResource>
 
     @DELETE("listings/{id}")
     suspend fun deleteListing(@Path("id") id: String): Map<String, String>
 
     @PUT("listings/{id}")
-    suspend fun updateListing(@Path("id") id: String, @Body body: ListingRequest): DataResponse<ListingResource>
+    suspend fun updateListing(@Path("id") id: String, @Body body: ListingRequest): ListingResource
 
     @POST("debug-logs")
     suspend fun sendDebugLogs(@Body body: DebugLogsRequest): SendDebugLogsResponse

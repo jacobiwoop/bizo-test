@@ -72,9 +72,9 @@ class ItemDetailViewModel @Inject constructor(
         DebugLogger.info(LogCategory.LISTING, "Chargement de l'annonce $id")
         viewModelScope.launch {
             try {
-                val response = bizoService.getListing(id)
-                _listing.value = response.data
-                DebugLogger.success(LogCategory.LISTING, "Annonce chargée", "Title: ${response.data.title}")
+                val listing = bizoService.getListing(id)
+                _listing.value = listing
+                DebugLogger.success(LogCategory.LISTING, "Annonce chargée", "Title: ${listing.title}")
             } catch (e: Exception) {
                 DebugLogger.error(LogCategory.LISTING, "Erreur chargement annonce", e.message)
                 e.printStackTrace()

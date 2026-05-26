@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -28,8 +27,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
@@ -91,7 +88,7 @@ private val onboardingPages = listOf(
     OnboardingPage(
         title = "Une seule app pour vendre, discuter et conclure",
         subtitle = "Gère tes annonces, parle directement avec les acheteurs et avance rapidement jusqu’à l’accord.",
-        icon = Icons.Default.ChatBubbleOutline,
+        icon = Icons.Default.Lock,
         accent = Color(0xFF6FCF97)
     ),
     OnboardingPage(
@@ -740,7 +737,7 @@ private fun OnboardingIllustration(page: OnboardingPage) {
                                 Icon(
                                     imageVector = when (index) {
                                         0 -> page.icon
-                                        1 -> Icons.Default.Bolt
+                                        1 -> Icons.Default.Search
                                         else -> Icons.Default.Lock
                                     },
                                     contentDescription = null,
